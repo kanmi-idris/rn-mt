@@ -23,6 +23,7 @@ This repository is scaffolded around the agreed product architecture and milesto
 - The full product PRD lives in `docs/issues/0001-rn-mt-prd.md`.
 - The concrete package and deep-module map lives in `docs/architecture.md`.
 - The beginner-friendly design decisions handbook lives in `docs/design-decisions-handbook.md`.
+- The issue and milestone execution map lives in `docs/roadmap.md`.
 - Integration tests are planned around committed fixture templates in `tests/fixtures/`.
 
 ## Milestones

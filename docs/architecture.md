@@ -78,3 +78,5 @@ Deep modules in `@rn-mt/core` should additionally have isolated contract tests, 
 The issue-ready PRD for the product is stored in `docs/issues/0001-rn-mt-prd.md`.
 
 The beginner-friendly design decisions handbook is stored in `docs/design-decisions-handbook.md`.
+
+The issue and milestone execution map is stored in `docs/roadmap.md`.
