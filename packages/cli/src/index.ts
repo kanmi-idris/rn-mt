@@ -9,35 +9,83 @@ import { basename, delimiter, dirname, join, relative, resolve } from "node:path
 import {
   type RnMtAuditFinding,
   type RnMtAuditSeverity,
-  canInitializeFromAnalyzeReport,
-  createAuditResult,
-  coreModuleContracts,
-  createBaselineAnalyzeReport,
-  createCurrentImportsCodemodResult,
-  createConvertResult,
-  createDoctorResult,
-  createHandoffFlattenResult,
-  createHandoffCleanupResult,
-  createHandoffIsolationAuditResult,
-  createHandoffSanitizationResult,
-  createHandoffPreflightResult,
-  createInitResult,
-  createOverrideCreateResult,
-  createOverrideRemoveResult,
-  createSubprocessEnv,
-  createSyncResult,
-  createTenantAddResult,
-  createTenantRemoveResult,
-  createTenantRenameResult,
-  createTargetSetResult,
-  formatBaselineAnalyzeReport,
-  getManifestPath,
-  getInitBlockedReason,
-  milestoneOneScope,
-  parseManifest,
+  type RnMtBaselineAnalyzeReport,
+  type RnMtEnvSource,
+  type RnMtManifest,
   type RnMtRepoAppKind,
+  type RnMtResolvedTarget,
   type RnMtTargetPlatform,
+  RnMtAnalyzeModule,
+  RnMtAuditModule,
+  RnMtConvertModule,
+  RnMtDoctorModule,
+  RnMtHandoffModule,
+  RnMtOverrideModule,
+  RnMtSyncModule,
+  RnMtTenantModule,
+  RnMtWorkspace,
+  manifest,
 } from "@rn-mt/core";
+
+const coreModuleContracts = [
+  {
+    name: "ManifestSchemaEngine",
+    purpose:
+      "Validate rn-mt.config.json, enforce schemaVersion, and expose normalized typed configuration.",
+  },
+  {
+    name: "TargetResolutionEngine",
+    purpose:
+      "Resolve base, environment, tenant, platform, and combined overrides into one deterministic build target.",
+  },
+  {
+    name: "RepoAnalysisEngine",
+    purpose:
+      "Analyze a host repo and classify app type, native state, script topology, package manager, and migration risk areas.",
+  },
+  {
+    name: "PatchPlanningEngine",
+    purpose:
+      "Produce structured patch plans for AST-first edits, generated include files, and anchored host integration points.",
+  },
+  {
+    name: "AuditEngine",
+    purpose:
+      "Run deterministic and heuristic audits with severity, confidence, fixability, and remediation guidance.",
+  },
+  {
+    name: "ReconstructionGraph",
+    purpose:
+      "Track how conversion changed the host app so tenant handoff can later rebuild a clean single-tenant repo.",
+  },
+  {
+    name: "AssetPipeline",
+    purpose:
+      "Fingerprint source assets and generate deterministic native-ready icons, splash assets, and environment badges.",
+  },
+] as const;
+
+const milestoneOneScope = {
+  includes: [
+    "workspace scaffolding",
+    "manifest schema and validation",
+    "repo analysis",
+    "init",
+    "convert",
+    "sync",
+    "audit",
+    "minimal Expo integration",
+    "minimal bare RN integration",
+    "script wiring",
+  ],
+  defers: [
+    "handoff implementation",
+    "advanced codemods",
+    "override lifecycle polish",
+    "upgrade and rollback polish",
+    "advanced route and feature registry helpers",
+  ],
+} as const;
 
 const helpText = `rn-mt
 
@@ -154,6 +202,11 @@ interface RnMtCliUpgradeStage {
   details: string[];
 }
 
+interface RnMtCliWorkspaceOverrides {
+  fileExists?: (path: string) => boolean;
+  readFile?: (path: string) => string;
+}
+
 const defaultIo: RnMtCliIo = {
   stdout(text) {
     process.stdout.write(text);
@@ -162,6 +215,337 @@ const defaultIo: RnMtCliIo = {
     process.stderr.write(text);
   },
 };
+
+function getWorkspace(
+  rootDir: string,
+  overrides: RnMtCliWorkspaceOverrides = {},
+) {
+  const workspace = new RnMtWorkspace({ rootDir });
+  const canReadFile = (path: string) => {
+    if (!overrides.readFile) {
+      return false;
+    }
+
+    try {
+      overrides.readFile(path);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  if (overrides.fileExists) {
+    workspace.exists = overrides.fileExists;
+  }
+
+  if (overrides.readFile) {
+    workspace.readText = overrides.readFile;
+    workspace.readJson = <T>(path: string) => JSON.parse(overrides.readFile!(path)) as T;
+  }
+
+  if (overrides.fileExists && overrides.readFile) {
+    workspace.isFile = (path: string) =>
+      overrides.fileExists!(path) && canReadFile(path);
+    workspace.isDirectory = (path: string) =>
+      overrides.fileExists!(path) && !workspace.isFile(path);
+    workspace.readJsonIfPresent = <T>(path: string) =>
+      overrides.fileExists!(path)
+        ? (JSON.parse(overrides.readFile!(path)) as T)
+        : null;
+  }
+
+  return workspace;
+}
+
+function getAnalyzeModule(rootDir: string, overrides: RnMtCliWorkspaceOverrides = {}) {
+  return new RnMtAnalyzeModule({ workspace: getWorkspace(rootDir, overrides) });
+}
+
+function createBaselineAnalyzeReport(
+  rootDir: string = process.cwd(),
+  options: {
+    scopeToProvidedRoot?: boolean;
+  } = {},
+) {
+  return getAnalyzeModule(rootDir).run(options);
+}
+
+function formatBaselineAnalyzeReport(report: RnMtBaselineAnalyzeReport) {
+  return getAnalyzeModule(report.repo.rootDir).format(report);
+}
+
+function canInitializeFromAnalyzeReport(report: RnMtBaselineAnalyzeReport) {
+  return getAnalyzeModule(report.repo.rootDir).canInitialize(report);
+}
+
+function getInitBlockedReason(report: RnMtBaselineAnalyzeReport) {
+  return getAnalyzeModule(report.repo.rootDir).getInitBlockedReason(report);
+}
+
+function createInitResult(report: RnMtBaselineAnalyzeReport) {
+  return getAnalyzeModule(report.repo.rootDir).createInitResult(report);
+}
+
+function createConvertResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  options: {
+    bridgeConfigModulePath?: string | null;
+    fileExists?: (path: string) => boolean;
+    readFile?: (path: string) => string;
+  } = {},
+) {
+  const runOptions = {
+    manifest: manifestValue,
+    ...(options.bridgeConfigModulePath !== undefined
+      ? { bridgeConfigModulePath: options.bridgeConfigModulePath }
+      : {}),
+  };
+
+  return new RnMtConvertModule({
+    workspace: getWorkspace(rootDir, options),
+  }).run(runOptions);
+}
+
+function createCurrentImportsCodemodResult(
+  rootDir: string,
+  options: RnMtCliWorkspaceOverrides = {},
+) {
+  return new RnMtConvertModule({
+    workspace: getWorkspace(rootDir, options),
+  }).planCurrentImportsCodemod();
+}
+
+function getManifestPath(rootDir: string) {
+  return getWorkspace(rootDir).getManifestPath();
+}
+
+function parseManifest(manifestContents: string) {
+  return manifest.parseManifest(manifestContents);
+}
+
+function createTargetSetResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  target: {
+    tenant: string;
+    environment: string;
+  },
+) {
+  return new RnMtTenantModule({
+    workspace: getWorkspace(rootDir),
+  }).setDefaultTarget({
+    manifest: manifestValue,
+    target,
+  });
+}
+
+function createTenantAddResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  tenant: {
+    id: string;
+    displayName?: string;
+  },
+) {
+  return new RnMtTenantModule({
+    workspace: getWorkspace(rootDir),
+  }).add({
+    manifest: manifestValue,
+    tenant,
+  });
+}
+
+function createTenantRenameResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  tenant: {
+    fromId: string;
+    toId: string;
+    displayName?: string;
+  },
+  _options?: unknown,
+) {
+  return new RnMtTenantModule({
+    workspace: getWorkspace(rootDir),
+  }).rename({
+    manifest: manifestValue,
+    tenant,
+  });
+}
+
+function createTenantRemoveResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  tenant: {
+    id: string;
+  },
+  _options?: unknown,
+) {
+  return new RnMtTenantModule({
+    workspace: getWorkspace(rootDir),
+  }).remove({
+    manifest: manifestValue,
+    tenant,
+  });
+}
+
+function createOverrideCreateResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  selectedPath: string,
+  options: RnMtCliWorkspaceOverrides = {},
+) {
+  return new RnMtOverrideModule({
+    workspace: getWorkspace(rootDir, options),
+  }).create({
+    manifest: manifestValue,
+    selectedPath,
+  });
+}
+
+function createOverrideRemoveResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  selectedPath: string,
+  options: RnMtCliWorkspaceOverrides = {},
+) {
+  return new RnMtOverrideModule({
+    workspace: getWorkspace(rootDir, options),
+  }).remove({
+    manifest: manifestValue,
+    selectedPath,
+  });
+}
+
+function createDoctorResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  options: RnMtCliWorkspaceOverrides = {},
+) {
+  return new RnMtDoctorModule({
+    workspace: getWorkspace(rootDir, options),
+  }).run(manifestValue);
+}
+
+function createAuditResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  options: RnMtCliWorkspaceOverrides = {},
+) {
+  return new RnMtAuditModule({
+    workspace: getWorkspace(rootDir, options),
+  }).run(manifestValue);
+}
+
+function createSubprocessEnv(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  target: RnMtResolvedTarget = manifestValue.defaults,
+  options: {
+    baseEnv?: RnMtEnvSource | undefined;
+    fileExists?: (path: string) => boolean;
+    readFile?: (path: string) => string;
+  } = {},
+) {
+  const runOptions = {
+    manifest: manifestValue,
+    target,
+    ...(options.baseEnv ? { baseEnv: options.baseEnv } : {}),
+  };
+
+  return new RnMtSyncModule({
+    manifest,
+    workspace: getWorkspace(rootDir, options),
+  }).createSubprocessEnv(runOptions);
+}
+
+function createSyncResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  target: RnMtResolvedTarget = manifestValue.defaults,
+  options: {
+    env?: RnMtEnvSource | undefined;
+    fileExists?: (path: string) => boolean;
+    readFile?: (path: string) => string;
+  } = {},
+) {
+  const runOptions = {
+    manifest: manifestValue,
+    target,
+    ...(options.env ? { env: options.env } : {}),
+  };
+
+  return new RnMtSyncModule({
+    manifest,
+    workspace: getWorkspace(rootDir, options),
+  }).run(runOptions);
+}
+
+function getHandoffModule(rootDir: string, overrides: RnMtCliWorkspaceOverrides = {}) {
+  const workspace = getWorkspace(rootDir, overrides);
+
+  return new RnMtHandoffModule({
+    audit: new RnMtAuditModule({ workspace }),
+    doctor: new RnMtDoctorModule({ workspace }),
+    workspace,
+  });
+}
+
+function createHandoffPreflightResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  tenantId: string,
+  options: RnMtCliWorkspaceOverrides = {},
+) {
+  return getHandoffModule(rootDir, options).preflight({
+    manifest: manifestValue,
+    tenantId,
+  });
+}
+
+function createHandoffFlattenResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  tenantId: string,
+  options: RnMtCliWorkspaceOverrides = {},
+) {
+  return getHandoffModule(rootDir, options).flatten({
+    manifest: manifestValue,
+    tenantId,
+  });
+}
+
+function createHandoffCleanupResult(
+  rootDir: string,
+  options: RnMtCliWorkspaceOverrides = {},
+) {
+  return getHandoffModule(rootDir, options).cleanup();
+}
+
+function createHandoffSanitizationResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  tenantId: string,
+  options: RnMtCliWorkspaceOverrides = {},
+) {
+  return getHandoffModule(rootDir, options).sanitize({
+    manifest: manifestValue,
+    tenantId,
+  });
+}
+
+function createHandoffIsolationAuditResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  tenantId: string,
+  options: RnMtCliWorkspaceOverrides = {},
+) {
+  return getHandoffModule(rootDir, options).auditIsolation({
+    manifest: manifestValue,
+    tenantId,
+  });
+}
 
 function getDefaultExecutionCwd() {
   return process.env.INIT_CWD ?? process.env.PWD ?? process.cwd();

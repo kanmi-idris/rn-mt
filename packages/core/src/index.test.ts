@@ -4,36 +4,318 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
 import {
-  canInitializeFromAnalyzeReport,
-  createAuditResult,
-  createBaselineAnalyzeReport,
-  createCurrentImportsCodemodResult,
-  createConvertResult,
-  createDoctorResult,
-  createHandoffCleanupResult,
-  createHandoffFlattenResult,
-  createHandoffIsolationAuditResult,
-  createHandoffPreflightResult,
-  createHandoffSanitizationResult,
-  createInitialManifest,
-  createInitResult,
-  createOverrideCreateResult,
-  createOverrideRemoveResult,
-  createSubprocessEnv,
-  createSyncResult,
-  createTenantAddResult,
-  createTenantRemoveResult,
-  createTenantRenameResult,
-  createTargetSetResult,
-  formatBaselineAnalyzeReport,
-  parseManifest,
-  getInitBlockedReason,
-  validateTargetSelection,
+  type RnMtBaselineAnalyzeReport,
+  type RnMtEnvSource,
+  type RnMtManifest,
+  type RnMtResolvedTarget,
+  RnMtAnalyzeModule,
+  RnMtAuditModule,
+  RnMtConvertModule,
+  RnMtDoctorModule,
+  RnMtHandoffModule,
+  RnMtOverrideModule,
+  RnMtSyncModule,
+  RnMtTenantModule,
+  RnMtWorkspace,
+  manifest,
 } from "./index";
 
 import { afterEach, describe, expect, it } from "vitest";
 
 const tempDirs: string[] = [];
+
+function getWorkspace(rootDir: string) {
+  return new RnMtWorkspace({ rootDir });
+}
+
+function getAnalyzeModule(rootDir: string) {
+  return new RnMtAnalyzeModule({ workspace: getWorkspace(rootDir) });
+}
+
+function createBaselineAnalyzeReport(
+  rootDir: string = process.cwd(),
+  options: {
+    scopeToProvidedRoot?: boolean;
+  } = {},
+) {
+  return getAnalyzeModule(rootDir).run(options);
+}
+
+function formatBaselineAnalyzeReport(report: RnMtBaselineAnalyzeReport) {
+  return getAnalyzeModule(report.repo.rootDir).format(report);
+}
+
+function canInitializeFromAnalyzeReport(report: RnMtBaselineAnalyzeReport) {
+  return getAnalyzeModule(report.repo.rootDir).canInitialize(report);
+}
+
+function getInitBlockedReason(report: RnMtBaselineAnalyzeReport) {
+  return getAnalyzeModule(report.repo.rootDir).getInitBlockedReason(report);
+}
+
+function createInitResult(report: RnMtBaselineAnalyzeReport) {
+  return getAnalyzeModule(report.repo.rootDir).createInitResult(report);
+}
+
+function parseManifest(manifestContents: string) {
+  return manifest.parseManifest(manifestContents);
+}
+
+function createCurrentImportsCodemodResult(rootDir: string, _options?: unknown) {
+  return new RnMtConvertModule({
+    workspace: getWorkspace(rootDir),
+  }).planCurrentImportsCodemod();
+}
+
+function createConvertResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  options: {
+    bridgeConfigModulePath?: string | null;
+  } = {},
+) {
+  const runOptions = {
+    manifest: manifestValue,
+    ...(options.bridgeConfigModulePath !== undefined
+      ? { bridgeConfigModulePath: options.bridgeConfigModulePath }
+      : {}),
+  };
+
+  return new RnMtConvertModule({
+    workspace: getWorkspace(rootDir),
+  }).run(runOptions);
+}
+
+function createDoctorResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  _options?: unknown,
+) {
+  return new RnMtDoctorModule({
+    workspace: getWorkspace(rootDir),
+  }).run(manifestValue);
+}
+
+function createAuditResult(rootDir: string, manifestValue: RnMtManifest) {
+  return new RnMtAuditModule({
+    workspace: getWorkspace(rootDir),
+  }).run(manifestValue);
+}
+
+function createTargetSetResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  target: {
+    tenant: string;
+    environment: string;
+  },
+) {
+  return new RnMtTenantModule({
+    workspace: getWorkspace(rootDir),
+  }).setDefaultTarget({
+    manifest: manifestValue,
+    target,
+  });
+}
+
+function createTenantAddResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  tenant: {
+    id: string;
+    displayName?: string;
+  },
+) {
+  return new RnMtTenantModule({
+    workspace: getWorkspace(rootDir),
+  }).add({
+    manifest: manifestValue,
+    tenant,
+  });
+}
+
+function createTenantRenameResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  tenant: {
+    fromId: string;
+    toId: string;
+    displayName?: string;
+  },
+  _options?: unknown,
+) {
+  return new RnMtTenantModule({
+    workspace: getWorkspace(rootDir),
+  }).rename({
+    manifest: manifestValue,
+    tenant,
+  });
+}
+
+function createTenantRemoveResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  tenant: {
+    id: string;
+  },
+  _options?: unknown,
+) {
+  return new RnMtTenantModule({
+    workspace: getWorkspace(rootDir),
+  }).remove({
+    manifest: manifestValue,
+    tenant,
+  });
+}
+
+function createOverrideCreateResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  selectedPath: string,
+) {
+  return new RnMtOverrideModule({
+    workspace: getWorkspace(rootDir),
+  }).create({
+    manifest: manifestValue,
+    selectedPath,
+  });
+}
+
+function createOverrideRemoveResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  selectedPath: string,
+) {
+  return new RnMtOverrideModule({
+    workspace: getWorkspace(rootDir),
+  }).remove({
+    manifest: manifestValue,
+    selectedPath,
+  });
+}
+
+function createSubprocessEnv(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  target: RnMtResolvedTarget = manifestValue.defaults,
+  options: {
+    baseEnv?: RnMtEnvSource | undefined;
+  } = {},
+) {
+  const runOptions = {
+    manifest: manifestValue,
+    target,
+    ...(options.baseEnv ? { baseEnv: options.baseEnv } : {}),
+  };
+
+  return new RnMtSyncModule({
+    manifest,
+    workspace: getWorkspace(rootDir),
+  }).createSubprocessEnv(runOptions);
+}
+
+function createSyncResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  target: RnMtResolvedTarget = manifestValue.defaults,
+  options: {
+    env?: RnMtEnvSource | undefined;
+  } = {},
+) {
+  const runOptions = {
+    manifest: manifestValue,
+    target,
+    ...(options.env ? { env: options.env } : {}),
+  };
+
+  return new RnMtSyncModule({
+    manifest,
+    workspace: getWorkspace(rootDir),
+  }).run(runOptions);
+}
+
+function getHandoffModule(rootDir: string) {
+  const workspace = getWorkspace(rootDir);
+
+  return new RnMtHandoffModule({
+    audit: new RnMtAuditModule({ workspace }),
+    doctor: new RnMtDoctorModule({ workspace }),
+    workspace,
+  });
+}
+
+function createHandoffPreflightResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  tenantId: string,
+  _options?: unknown,
+) {
+  return getHandoffModule(rootDir).preflight({
+    manifest: manifestValue,
+    tenantId,
+  });
+}
+
+function createHandoffFlattenResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  tenantId: string,
+  _options?: unknown,
+) {
+  return getHandoffModule(rootDir).flatten({
+    manifest: manifestValue,
+    tenantId,
+  });
+}
+
+function createHandoffCleanupResult(rootDir: string, _options?: unknown) {
+  return getHandoffModule(rootDir).cleanup();
+}
+
+function createHandoffSanitizationResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  tenantId: string,
+  _options?: unknown,
+) {
+  return getHandoffModule(rootDir).sanitize({
+    manifest: manifestValue,
+    tenantId,
+  });
+}
+
+function createHandoffIsolationAuditResult(
+  rootDir: string,
+  manifestValue: RnMtManifest,
+  tenantId: string,
+  _options?: unknown,
+) {
+  return getHandoffModule(rootDir).auditIsolation({
+    manifest: manifestValue,
+    tenantId,
+  });
+}
+
+function createInitialManifest(report: RnMtBaselineAnalyzeReport) {
+  const packageJsonPath = join(report.repo.rootDir, "package.json");
+  const packageName = existsSync(packageJsonPath)
+    ? (JSON.parse(readFileSync(packageJsonPath, "utf8")) as { name?: string }).name
+    : undefined;
+
+  return manifest.createInitialManifest(report, {
+    ...(packageName ? { packageName } : {}),
+  });
+}
+
+function validateTargetSelection(
+  manifestValue: RnMtManifest,
+  target: {
+    tenant: string;
+    environment: string;
+  },
+) {
+  return manifest.validateTargetSelection(manifestValue, target);
+}
 
 function createTempRepo(prefix: string) {
   const directory = mkdtempSync(join(tmpdir(), prefix));
@@ -716,7 +998,7 @@ describe("tenant rename helpers", () => {
       },
       {
         fileExists: existsSync,
-        readFile: (path) => readFileSync(path, "utf8"),
+        readFile: (path: string) => readFileSync(path, "utf8"),
       },
     );
 
@@ -985,7 +1267,7 @@ describe("handoff preflight helpers", () => {
 
     const result = createHandoffPreflightResult(repoDir, manifest, "fixture-app", {
       fileExists: existsSync,
-      readFile: (path) => readFileSync(path, "utf8"),
+      readFile: (path: string) => readFileSync(path, "utf8"),
     });
 
     expect(result.status).toBe("ready");
@@ -1056,7 +1338,7 @@ describe("handoff preflight helpers", () => {
 
     const result = createHandoffPreflightResult(repoDir, manifest, "fixture-app", {
       fileExists: existsSync,
-      readFile: (path) => readFileSync(path, "utf8"),
+      readFile: (path: string) => readFileSync(path, "utf8"),
     });
 
     expect(result.status).toBe("blocked");
@@ -1173,7 +1455,7 @@ describe("handoff flatten helpers", () => {
 
     const result = createHandoffFlattenResult(repoDir, manifest, "acme", {
       fileExists: existsSync,
-      readFile: (path) => readFileSync(path, "utf8"),
+      readFile: (path: string) => readFileSync(path, "utf8"),
     });
 
     expect(result.tenant).toEqual({
@@ -1329,7 +1611,7 @@ describe("handoff cleanup helpers", () => {
 
     const flattenResult = createHandoffFlattenResult(repoDir, manifest, "fixture-app", {
       fileExists: existsSync,
-      readFile: (path) => readFileSync(path, "utf8"),
+      readFile: (path: string) => readFileSync(path, "utf8"),
     });
 
     for (const file of flattenResult.restoredFiles) {
@@ -1339,7 +1621,7 @@ describe("handoff cleanup helpers", () => {
 
     const cleanupResult = createHandoffCleanupResult(repoDir, {
       fileExists: existsSync,
-      readFile: (path) => readFileSync(path, "utf8"),
+      readFile: (path: string) => readFileSync(path, "utf8"),
     });
     const packageJsonFile = cleanupResult.rewrittenFiles.find(
       (file) => file.path === join(repoDir, "package.json"),
@@ -1421,7 +1703,7 @@ describe("handoff sanitization helpers", () => {
 
     const result = createHandoffSanitizationResult(repoDir, manifest, "fixture-app", {
       fileExists: existsSync,
-      readFile: (path) => readFileSync(path, "utf8"),
+      readFile: (path: string) => readFileSync(path, "utf8"),
     });
 
     expect(result.reviewRequired).toBe(true);
@@ -1484,7 +1766,7 @@ describe("handoff isolation audit helpers", () => {
 
     const result = createHandoffIsolationAuditResult(repoDir, manifest, "acme", {
       fileExists: existsSync,
-      readFile: (path) => readFileSync(path, "utf8"),
+      readFile: (path: string) => readFileSync(path, "utf8"),
     });
 
     expect(result.findings).toEqual([
@@ -1566,7 +1848,7 @@ describe("codemod helpers", () => {
 
     const result = createCurrentImportsCodemodResult(repoDir, {
       fileExists: existsSync,
-      readFile: (path) => readFileSync(path, "utf8"),
+      readFile: (path: string) => readFileSync(path, "utf8"),
     });
 
     expect(result.codemod).toBe("current-imports");
