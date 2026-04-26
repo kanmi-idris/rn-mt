@@ -23,6 +23,7 @@ This repository is actively being built issue by issue against the agreed produc
 - The full product PRD lives in `docs/issues/0001-rn-mt-prd.md`.
 - The concrete package and deep-module map lives in `docs/architecture.md`.
 - The beginner-friendly design decisions handbook lives in `docs/design-decisions-handbook.md`.
+- The domain glossary lives in `UBIQUITOUS_LANGUAGE.md`.
 - The contributor-facing support contract lives in `docs/support-policy.md`.
 - The issue and milestone execution map lives in `docs/roadmap.md`.
 - Integration tests are planned around committed fixture templates in `tests/fixtures/`.
@@ -37,6 +38,7 @@ The short version is:
 - one manifest applies to one app root, even inside a larger monorepo.
 
 Read `docs/support-policy.md` for the full support, milestone, and EAS boundary.
+Read `UBIQUITOUS_LANGUAGE.md` for the canonical domain vocabulary and ambiguity notes.
 
 ## Milestones
 

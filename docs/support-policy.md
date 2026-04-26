@@ -4,6 +4,8 @@ This document is the short contributor-facing contract for terminology, host-sta
 
 It is derived from the product decisions in `docs/design-decisions-handbook.md`, the PRD, and the active issue roadmap. If this file ever drifts from those source docs, fix the drift instead of inventing a new policy here.
 
+For the broader domain glossary and flagged terminology ambiguities, read `UBIQUITOUS_LANGUAGE.md` at the repo root alongside this policy.
+
 ## Canonical Terminology
 
 - `tenant` is the canonical technical term across the CLI, manifest, code, and docs.
