@@ -20,6 +20,7 @@ The planning stack for this repo is:
 - BRD doc: `docs/issues/0002-rn-mt-brd.md`
 - Architecture map: `docs/architecture.md`
 - Design decisions handbook: `docs/design-decisions-handbook.md`
+- Support policy guide: `docs/support-policy.md`
 
 If this roadmap ever disagrees with the GitHub issues, the GitHub issues win.
 
@@ -30,6 +31,17 @@ If this roadmap ever disagrees with the GitHub issues, the GitHub issues win.
 - An issue marked **AFK** can usually be built without a human checkpoint.
 - An issue marked **HITL** needs a human review or decision before merge.
 - A **tracer bullet** is a very thin end-to-end slice. It should be small but still real and testable.
+
+## Support and Terminology Boundary
+
+Use `docs/support-policy.md` as the short contributor-facing contract for these topics.
+
+The important rules are:
+
+- `tenant` stays the canonical technical term across docs, schema, and commands.
+- support is intentionally explicit: supported, near-supported, and unsupported are different states
+- monorepo support means one manifest per app root, not one manifest per whole workspace
+- EAS is part of the Expo operating story, but current `rn-mt` support is still narrower than a full EAS release manager
 
 ## Milestone Split
 
@@ -51,6 +63,7 @@ Important note:
 
 - A few later-looking topics were still kept in milestone 1 because they are part of the first usable operating model.
 - The deeper registry ergonomics, codemod polish, tenant lifecycle polish, upgrade polish, and all handoff work remain milestone 2.
+- Expo target-context wiring and release-facing validation belong to milestone 1, but broader EAS workflow guidance and later lifecycle polish remain milestone 2.
 
 ### Milestone 2: Handoff and Advanced Lifecycle
 
@@ -65,6 +78,11 @@ GitHub milestone:
 Main issue range:
 
 - `#47` to `#61`
+
+Important note:
+
+- Milestone 2 includes contributor-facing support and roadmap docs so the public contract stays aligned with the implementation boundary.
+- Milestone 2 should not be described as “full Expo or EAS automation.” It is the phase for advanced lifecycle polish and handoff, not for pretending credentials or release automation are already owned.
 
 ## Big Picture Flow
 

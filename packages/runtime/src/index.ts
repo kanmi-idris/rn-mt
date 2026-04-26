@@ -9,6 +9,28 @@ export interface ResolvedTenantRuntime {
   };
   flags: Record<string, unknown>;
   assets: Record<string, string>;
+  routes: Array<{
+    id: string;
+    path: string;
+    screen: string;
+  }>;
+  features: Array<{
+    id: string;
+    module: string;
+    enabledByFlag?: string;
+  }>;
+  menus: Array<{
+    id: string;
+    label: string;
+    actionId: string;
+    enabledByFlag?: string;
+  }>;
+  actions: Array<{
+    id: string;
+    label: string;
+    handler: string;
+    enabledByFlag?: string;
+  }>;
 }
 
 export function createRuntimeAccessors(runtime: ResolvedTenantRuntime) {
@@ -27,6 +49,18 @@ export function createRuntimeAccessors(runtime: ResolvedTenantRuntime) {
     },
     getAssets() {
       return runtime.assets;
+    },
+    getRoutes() {
+      return runtime.routes;
+    },
+    getFeatures() {
+      return runtime.features;
+    },
+    getMenus() {
+      return runtime.menus;
+    },
+    getActions() {
+      return runtime.actions;
     },
   };
 }

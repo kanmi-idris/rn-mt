@@ -18,13 +18,25 @@ It is designed to convert a single-tenant mobile app into a manifest-driven mult
 
 ## Current state
 
-This repository is scaffolded around the agreed product architecture and milestone plan.
+This repository is actively being built issue by issue against the agreed product architecture and milestone plan.
 
 - The full product PRD lives in `docs/issues/0001-rn-mt-prd.md`.
 - The concrete package and deep-module map lives in `docs/architecture.md`.
 - The beginner-friendly design decisions handbook lives in `docs/design-decisions-handbook.md`.
+- The contributor-facing support contract lives in `docs/support-policy.md`.
 - The issue and milestone execution map lives in `docs/roadmap.md`.
 - Integration tests are planned around committed fixture templates in `tests/fixtures/`.
+
+## Support policy
+
+The short version is:
+
+- `tenant` is the canonical technical term across the product.
+- `rn-mt` explicitly targets modern Expo managed, Expo prebuild, and bare React Native app roots.
+- ambiguous or non-standard repo shapes are near-supported and should require an explicit human choice instead of silent guesses.
+- one manifest applies to one app root, even inside a larger monorepo.
+
+Read `docs/support-policy.md` for the full support, milestone, and EAS boundary.
 
 ## Milestones
 
@@ -36,18 +48,20 @@ This repository is scaffolded around the agreed product architecture and milesto
 - `init`, `convert`, `sync`, and `audit`
 - minimal Expo and bare RN integration
 - script wiring and daily developer workflow
+- one manifest per app root in monorepos
 
 ### Milestone 2
 
+- support-policy and EAS roadmap docs
+- tenant lifecycle polish
 - `handoff`
 - advanced codemods
-- override lifecycle polish
-- rollback and upgrade polish
+- override, rollback, and upgrade polish
 - higher-level route and feature registry ergonomics
 
 ## Commands
 
-The final public surface will include commands such as:
+The public surface is being built incrementally around commands such as:
 
 - `rn-mt init`
 - `rn-mt analyze`
@@ -58,4 +72,4 @@ The final public surface will include commands such as:
 - `rn-mt upgrade`
 - `rn-mt handoff --tenant <id>`
 
-The CLI package currently contains a placeholder command surface so the workspace has a stable starting point.
+See `docs/roadmap.md` and the GitHub issues for exact issue-level implementation status.

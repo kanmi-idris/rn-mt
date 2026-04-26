@@ -1,15 +1,29 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import {
   canInitializeFromAnalyzeReport,
+  createAuditResult,
   createBaselineAnalyzeReport,
+  createCurrentImportsCodemodResult,
   createConvertResult,
+  createDoctorResult,
+  createHandoffCleanupResult,
+  createHandoffFlattenResult,
+  createHandoffIsolationAuditResult,
+  createHandoffPreflightResult,
+  createHandoffSanitizationResult,
   createInitialManifest,
   createInitResult,
+  createOverrideCreateResult,
+  createOverrideRemoveResult,
   createSubprocessEnv,
   createSyncResult,
+  createTenantAddResult,
+  createTenantRemoveResult,
+  createTenantRenameResult,
   createTargetSetResult,
   formatBaselineAnalyzeReport,
   parseManifest,
@@ -132,6 +146,45 @@ describe("createBaselineAnalyzeReport", () => {
       name: "pnpm",
       source: "packageManager-field",
       raw: "pnpm@10.25.0",
+    });
+  });
+
+  it("keeps analysis scoped to an explicit app root inside a larger workspace", () => {
+    const repoDir = createTempRepo("rn-mt-core-scoped-app-root-");
+    const appRoot = join(repoDir, "apps", "mobile");
+
+    mkdirSync(join(repoDir, ".git"));
+    mkdirSync(appRoot, { recursive: true });
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "workspace-root",
+        packageManager: "pnpm@10.25.0",
+        workspaces: ["apps/*"],
+      }),
+    );
+    writeFileSync(
+      join(appRoot, "package.json"),
+      JSON.stringify({
+        name: "mobile-app",
+        dependencies: {
+          expo: "~55.0.0",
+          "react-native": "0.85.0",
+        },
+      }),
+    );
+    writeFileSync(join(appRoot, "app.json"), JSON.stringify({ expo: { name: "Mobile App" } }));
+
+    const report = createBaselineAnalyzeReport(appRoot, {
+      scopeToProvidedRoot: true,
+    });
+
+    expect(report.repo.rootDir).toBe(appRoot);
+    expect(report.repo.app.kind).toBe("expo-managed");
+    expect(report.repo.packageManager).toEqual({
+      name: "unknown",
+      source: "none",
+      raw: null,
     });
   });
 
@@ -554,6 +607,979 @@ describe("target set helpers", () => {
   });
 });
 
+describe("tenant add helpers", () => {
+  it("adds a new tenant, seeds initial structure, and leaves the manifest syncable", () => {
+    const manifest = parseManifest(
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: "/tmp/demo-app" },
+        defaults: { tenant: "demo-app", environment: "dev" },
+        tenants: {
+          "demo-app": { displayName: "Demo App" },
+        },
+        environments: {
+          dev: { displayName: "Development" },
+        },
+      }),
+    );
+
+    const result = createTenantAddResult("/tmp/demo-app", manifest, {
+      id: "acme-beta",
+    });
+    const targetResult = createTargetSetResult("/tmp/demo-app", result.manifest, {
+      tenant: "acme-beta",
+      environment: "dev",
+    });
+
+    expect(result.manifest.tenants["acme-beta"]).toEqual({
+      displayName: "Acme Beta",
+    });
+    expect(result.createdFiles).toEqual([
+      {
+        path: "/tmp/demo-app/src/rn-mt/tenants/acme-beta/.gitkeep",
+        contents: "",
+      },
+    ]);
+    expect(targetResult.manifest.defaults).toEqual({
+      tenant: "acme-beta",
+      environment: "dev",
+    });
+    expect(() =>
+      createSyncResult("/tmp/demo-app", result.manifest, {
+        tenant: "acme-beta",
+        environment: "dev",
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects duplicate tenant ids", () => {
+    const manifest = parseManifest(
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: "/tmp/demo-app" },
+        defaults: { tenant: "demo-app", environment: "dev" },
+        tenants: {
+          "demo-app": { displayName: "Demo App" },
+        },
+        environments: {
+          dev: { displayName: "Development" },
+        },
+      }),
+    );
+
+    expect(() =>
+      createTenantAddResult("/tmp/demo-app", manifest, {
+        id: "demo-app",
+      }),
+    ).toThrow("Tenant already exists: demo-app");
+  });
+});
+
+describe("tenant rename helpers", () => {
+  it("renames a tenant, rewrites current facades for the default tenant, and updates tenant-scoped paths", () => {
+    const repoDir = createTempRepo("rn-mt-core-tenant-rename-");
+
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "rn-mt", "tenants", "demo-app", "theme"), {
+      recursive: true,
+    });
+    writeFileSync(
+      join(repoDir, "src", "rn-mt", "shared", "theme", "branding.ts"),
+      "export default { color: 'shared' };\n",
+    );
+    writeFileSync(
+      join(repoDir, "src", "rn-mt", "tenants", "demo-app", "theme", "branding.ts"),
+      "export default { color: 'tenant' };\n",
+    );
+    writeFileSync(join(repoDir, ".env.demo-app.dev"), "API_BASE_URL=https://demo.example.com\n");
+
+    const manifest = parseManifest(
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: repoDir },
+        defaults: { tenant: "demo-app", environment: "dev" },
+        tenants: {
+          "demo-app": { displayName: "Demo App" },
+        },
+        environments: {
+          dev: { displayName: "Development" },
+        },
+      }),
+    );
+
+    const result = createTenantRenameResult(
+      repoDir,
+      manifest,
+      {
+        fromId: "demo-app",
+        toId: "acme-beta",
+      },
+      {
+        fileExists: existsSync,
+        readFile: (path) => readFileSync(path, "utf8"),
+      },
+    );
+
+    expect(result.manifest.defaults).toEqual({
+      tenant: "acme-beta",
+      environment: "dev",
+    });
+    expect(result.manifest.tenants["acme-beta"]).toEqual({
+      displayName: "Demo App",
+    });
+    expect(result.renamedPaths).toEqual(
+      expect.arrayContaining([
+        {
+          fromPath: join(repoDir, "src", "rn-mt", "tenants", "demo-app"),
+          toPath: join(repoDir, "src", "rn-mt", "tenants", "acme-beta"),
+        },
+        {
+          fromPath: join(repoDir, ".env.demo-app.dev"),
+          toPath: join(repoDir, ".env.acme-beta.dev"),
+        },
+      ]),
+    );
+    expect(result.generatedFiles).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: join(repoDir, "src", "rn-mt", "current", "theme", "branding.ts"),
+          kind: "current-facade",
+          contents: expect.stringContaining("../../tenants/acme-beta/theme/branding"),
+        }),
+      ]),
+    );
+  });
+
+  it("rejects tenant rename collisions", () => {
+    const manifest = parseManifest(
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: "/tmp/demo-app" },
+        defaults: { tenant: "demo-app", environment: "dev" },
+        tenants: {
+          "demo-app": { displayName: "Demo App" },
+          acme: { displayName: "Acme" },
+        },
+        environments: {
+          dev: { displayName: "Development" },
+        },
+      }),
+    );
+
+    expect(() =>
+      createTenantRenameResult("/tmp/demo-app", manifest, {
+        fromId: "demo-app",
+        toId: "acme",
+      }),
+    ).toThrow("Tenant already exists: acme");
+  });
+});
+
+describe("tenant remove helpers", () => {
+  it("removes a non-default tenant from the manifest and collects tenant-scoped paths", () => {
+    const repoDir = createTempRepo("rn-mt-core-tenant-remove-");
+
+    mkdirSync(join(repoDir, "src", "rn-mt", "tenants", "acme"), { recursive: true });
+    writeFileSync(join(repoDir, ".env.acme.dev"), "API_BASE_URL=https://acme.example.com\n");
+
+    const manifest = parseManifest(
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: repoDir },
+        defaults: { tenant: "demo-app", environment: "dev" },
+        tenants: {
+          "demo-app": { displayName: "Demo App" },
+          acme: { displayName: "Acme" },
+        },
+        environments: {
+          dev: { displayName: "Development" },
+        },
+      }),
+    );
+
+    const result = createTenantRemoveResult(
+      repoDir,
+      manifest,
+      {
+        id: "acme",
+      },
+      {
+        fileExists: existsSync,
+      },
+    );
+
+    expect(result.manifest.tenants).toEqual({
+      "demo-app": { displayName: "Demo App" },
+    });
+    expect(result.removedPaths).toEqual([
+      join(repoDir, ".env.acme.dev"),
+      join(repoDir, "src", "rn-mt", "tenants", "acme"),
+    ]);
+    expect(validateTargetSelection(result.manifest, {
+      tenant: "demo-app",
+      environment: "dev",
+    })).toBeNull();
+  });
+
+  it("rejects removing the current default tenant", () => {
+    const manifest = parseManifest(
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: "/tmp/demo-app" },
+        defaults: { tenant: "demo-app", environment: "dev" },
+        tenants: {
+          "demo-app": { displayName: "Demo App" },
+          acme: { displayName: "Acme" },
+        },
+        environments: {
+          dev: { displayName: "Development" },
+        },
+      }),
+    );
+
+    expect(() =>
+      createTenantRemoveResult("/tmp/demo-app", manifest, {
+        id: "demo-app",
+      }),
+    ).toThrow("Cannot remove default tenant: demo-app. Select a different default target first.");
+  });
+});
+
+describe("doctor helpers", () => {
+  it("reports positive release integration signals when expected artifacts are present", () => {
+    const repoDir = createTempRepo("rn-mt-core-doctor-positive-");
+
+    mkdirSync(join(repoDir, "android", "app"), { recursive: true });
+    mkdirSync(join(repoDir, "ios", "KeepNexus.xcodeproj", "xcshareddata", "xcschemes"), {
+      recursive: true,
+    });
+    writeFileSync(join(repoDir, "android", "app", "build.gradle"), "android {}\n");
+    writeFileSync(
+      join(repoDir, "android", "app", "rn-mt.generated.identity.gradle"),
+      "// generated\n",
+    );
+    writeFileSync(
+      join(repoDir, "android", "app", "rn-mt.generated.flavors.gradle"),
+      "// generated\n",
+    );
+    writeFileSync(join(repoDir, "ios", "rn-mt.generated.current.xcconfig"), "// generated\n");
+    writeFileSync(
+      join(repoDir, "ios", "rn-mt.generated.demo-app-dev.xcconfig"),
+      "// generated\n",
+    );
+    writeFileSync(
+      join(
+        repoDir,
+        "ios",
+        "KeepNexus.xcodeproj",
+        "xcshareddata",
+        "xcschemes",
+        "DemoApp-Dev.xcscheme",
+      ),
+      "<Scheme />\n",
+    );
+
+    const manifest = parseManifest(
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: repoDir },
+        defaults: { tenant: "demo-app", environment: "dev" },
+        tenants: {
+          "demo-app": { displayName: "Demo App" },
+        },
+        environments: {
+          dev: { displayName: "Development" },
+        },
+      }),
+    );
+
+    const result = createDoctorResult(repoDir, manifest, {
+      fileExists: existsSync,
+    });
+
+    expect(result.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "android-release-integration",
+          status: "ok",
+        }),
+        expect.objectContaining({
+          code: "ios-release-integration",
+          status: "ok",
+        }),
+      ]),
+    );
+  });
+
+  it("reports a warning when Expo distribution wiring is missing", () => {
+    const repoDir = createTempRepo("rn-mt-core-doctor-warning-");
+
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "expo-fixture",
+        dependencies: {
+          expo: "~55.0.0",
+          "react-native": "0.85.0",
+        },
+      }),
+    );
+    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "Expo Fixture" } }));
+
+    const manifest = parseManifest(
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: repoDir },
+        defaults: { tenant: "demo-app", environment: "dev" },
+        tenants: {
+          "demo-app": { displayName: "Demo App" },
+        },
+        environments: {
+          dev: { displayName: "Development" },
+        },
+      }),
+    );
+
+    const result = createDoctorResult(repoDir, manifest, {
+      fileExists: existsSync,
+    });
+
+    expect(result.checks).toEqual([
+      expect.objectContaining({
+        code: "expo-distribution-config",
+        status: "warning",
+      }),
+    ]);
+    expect(result.checks[0]?.details).toContain(
+      `Expected ${join(repoDir, "eas.json")} for EAS build and submit workflow wiring.`,
+    );
+  });
+});
+
+describe("handoff preflight helpers", () => {
+  it("passes handoff preflight when the repo is converted, doctor-clean, and carries reconstruction metadata", () => {
+    const repoDir = createTempRepo("rn-mt-core-handoff-preflight-pass-");
+    const manifest = createConvertManifest(repoDir, "fixture-app");
+
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "fixture-app",
+        dependencies: { expo: "~52.0.0" },
+      }),
+    );
+    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
+    writeFileSync(join(repoDir, "eas.json"), JSON.stringify({ cli: { version: ">= 1.0.0" } }));
+    writeFileSync(join(repoDir, "App.tsx"), "export default function App() { return null; }\n");
+    writeFileSync(
+      join(repoDir, "index.js"),
+      "import { registerRootComponent } from 'expo';\nregisterRootComponent(App);\n",
+    );
+
+    const convertResult = createConvertResult(repoDir, manifest);
+
+    for (const file of convertResult.generatedFiles) {
+      mkdirSync(dirname(file.path), { recursive: true });
+      writeFileSync(file.path, file.contents);
+    }
+
+    const result = createHandoffPreflightResult(repoDir, manifest, "fixture-app", {
+      fileExists: existsSync,
+      readFile: (path) => readFileSync(path, "utf8"),
+    });
+
+    expect(result.status).toBe("ready");
+    expect(result.tenant).toEqual({
+      id: "fixture-app",
+      displayName: "Acme",
+    });
+    expect(result.checks).toEqual([
+      {
+        code: "target-tenant",
+        status: "ok",
+        summary: "Tenant fixture-app is present in the manifest.",
+        details: ["Display name: Acme"],
+      },
+      {
+        code: "converted-repo",
+        status: "ok",
+        summary: "Converted repo ownership metadata is present.",
+        details: [expect.stringContaining("rn-mt.generated.convert.ownership.json")],
+      },
+      {
+        code: "reconstruction-metadata",
+        status: "ok",
+        summary: "Reconstruction metadata is present.",
+        details: [
+          expect.stringContaining("rn-mt.generated.reconstruction.json"),
+          expect.stringContaining("Tracked paths: 2"),
+        ],
+      },
+      {
+        code: "doctor-clean",
+        status: "ok",
+        summary: "Doctor passed with no warnings.",
+        details: [
+          "expo-distribution-config: Expo distribution integration detected.",
+        ],
+      },
+    ]);
+  });
+
+  it("blocks handoff preflight when reconstruction metadata is missing", () => {
+    const repoDir = createTempRepo("rn-mt-core-handoff-preflight-blocked-");
+    const manifest = createConvertManifest(repoDir, "fixture-app");
+
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "fixture-app",
+        dependencies: { expo: "~52.0.0" },
+      }),
+    );
+    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
+    writeFileSync(join(repoDir, "eas.json"), JSON.stringify({ cli: { version: ">= 1.0.0" } }));
+    writeFileSync(join(repoDir, "App.tsx"), "export default function App() { return null; }\n");
+    writeFileSync(
+      join(repoDir, "index.js"),
+      "import { registerRootComponent } from 'expo';\nregisterRootComponent(App);\n",
+    );
+
+    const convertResult = createConvertResult(repoDir, manifest);
+
+    for (const file of convertResult.generatedFiles.filter(
+      (generatedFile) => generatedFile.kind !== "reconstruction-metadata",
+    )) {
+      mkdirSync(dirname(file.path), { recursive: true });
+      writeFileSync(file.path, file.contents);
+    }
+
+    const result = createHandoffPreflightResult(repoDir, manifest, "fixture-app", {
+      fileExists: existsSync,
+      readFile: (path) => readFileSync(path, "utf8"),
+    });
+
+    expect(result.status).toBe("blocked");
+    expect(result.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "converted-repo",
+          status: "ok",
+        }),
+        expect.objectContaining({
+          code: "reconstruction-metadata",
+          status: "blocked",
+          summary: "Reconstruction metadata is missing or empty.",
+        }),
+        expect.objectContaining({
+          code: "doctor-clean",
+          status: "ok",
+        }),
+      ]),
+    );
+  });
+});
+
+describe("handoff flatten helpers", () => {
+  it("reconstructs a native-looking app structure from shared files plus tenant fallback", () => {
+    const repoDir = createTempRepo("rn-mt-core-handoff-flatten-");
+    const manifest = createConvertManifest(repoDir, "acme");
+
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "fixture-app",
+        dependencies: { expo: "~52.0.0" },
+      }),
+    );
+    writeFileSync(join(repoDir, "rn-mt.config.json"), JSON.stringify(manifest, null, 2));
+    writeFileSync(join(repoDir, "README.md"), "# Fixture App\n");
+    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      [
+        'import theme from "./theme";',
+        'import config from "./src/config";',
+        "",
+        "export default function App() {",
+        "  return theme && config ? null : null;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(repoDir, "index.js"),
+      "import { registerRootComponent } from 'expo';\nregisterRootComponent(App);\n",
+    );
+    mkdirSync(join(repoDir, "theme"), { recursive: true });
+    mkdirSync(join(repoDir, "assets"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "config"), { recursive: true });
+    writeFileSync(
+      join(repoDir, "theme", "index.ts"),
+      [
+        'import logo from "../assets/logo.png";',
+        "",
+        "export default { logo, color: 'shared' };",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(join(repoDir, "assets", "logo.png"), "binary");
+    writeFileSync(
+      join(repoDir, "App.test.tsx"),
+      [
+        'import App from "./App";',
+        "",
+        "describe('App', () => {",
+        "  it('renders', () => {",
+        "    expect(App).toBeDefined();",
+        "  });",
+        "});",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(repoDir, "src", "config", "index.ts"),
+      "export default { apiBaseUrl: 'https://example.com' };\n",
+    );
+
+    const convertResult = createConvertResult(repoDir, manifest);
+
+    for (const file of convertResult.movedFiles) {
+      mkdirSync(dirname(file.destinationPath), { recursive: true });
+      writeFileSync(file.destinationPath, file.contents);
+
+      if (file.removeSourcePath && file.sourcePath !== file.destinationPath && existsSync(file.sourcePath)) {
+        rmSync(file.sourcePath, { force: true });
+      }
+    }
+
+    for (const file of convertResult.generatedFiles) {
+      mkdirSync(dirname(file.path), { recursive: true });
+      writeFileSync(file.path, file.contents);
+    }
+
+    mkdirSync(join(repoDir, "src", "rn-mt", "tenants", "acme", "theme"), {
+      recursive: true,
+    });
+    writeFileSync(
+      join(repoDir, "src", "rn-mt", "tenants", "acme", "theme", "index.ts"),
+      [
+        'import logo from "../../../current/assets/logo.png";',
+        "",
+        "export default { logo, color: 'tenant' };",
+        "",
+      ].join("\n"),
+    );
+
+    const result = createHandoffFlattenResult(repoDir, manifest, "acme", {
+      fileExists: existsSync,
+      readFile: (path) => readFileSync(path, "utf8"),
+    });
+
+    expect(result.tenant).toEqual({
+      id: "acme",
+      displayName: "Acme",
+    });
+    expect(result.restoredFiles).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourcePath: join(repoDir, "src", "rn-mt", "shared", "App.tsx"),
+          destinationPath: join(repoDir, "App.tsx"),
+          contents: [
+            'import theme from "./theme";',
+            'import config from "./src/config";',
+            "",
+            "export default function App() {",
+            "  return theme && config ? null : null;",
+            "}",
+            "",
+          ].join("\n"),
+        }),
+        expect.objectContaining({
+          sourcePath: join(repoDir, "src", "rn-mt", "tenants", "acme", "theme", "index.ts"),
+          destinationPath: join(repoDir, "theme", "index.ts"),
+          contents: [
+            'import logo from "../assets/logo.png";',
+            "",
+            "export default { logo, color: 'tenant' };",
+            "",
+          ].join("\n"),
+        }),
+        expect.objectContaining({
+          sourcePath: join(repoDir, "src", "rn-mt", "shared", "src", "config", "index.ts"),
+          destinationPath: join(repoDir, "src", "config", "index.ts"),
+          contents: "export default { apiBaseUrl: 'https://example.com' };\n",
+        }),
+        expect.objectContaining({
+          sourcePath: join(repoDir, "src", "rn-mt", "shared", "assets", "logo.png"),
+          destinationPath: join(repoDir, "assets", "logo.png"),
+          contents: "binary",
+        }),
+        expect.objectContaining({
+          sourcePath: join(repoDir, "src", "rn-mt", "shared", "App.test.tsx"),
+          destinationPath: join(repoDir, "App.test.tsx"),
+          contents: [
+            'import App from "./App";',
+            "",
+            "describe('App', () => {",
+            "  it('renders', () => {",
+            "    expect(App).toBeDefined();",
+            "  });",
+            "});",
+            "",
+          ].join("\n"),
+        }),
+      ]),
+    );
+  });
+});
+
+describe("handoff cleanup helpers", () => {
+  it("rewrites package identity and removes rn-mt machinery from a flattened output", () => {
+    const repoDir = createTempRepo("rn-mt-core-handoff-cleanup-");
+    const manifest = createConvertManifest(repoDir, "fixture-app");
+
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "fixture-app",
+        dependencies: { expo: "~52.0.0" },
+      }),
+    );
+    writeFileSync(join(repoDir, "rn-mt.config.json"), JSON.stringify(manifest, null, 2));
+    writeFileSync(join(repoDir, "README.md"), "# Fixture App\n");
+    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      [
+        'import theme from "./theme";',
+        'import config from "./src/config";',
+        "",
+        "export default function App() {",
+        "  return theme && config ? null : null;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(repoDir, "index.js"),
+      "import { registerRootComponent } from 'expo';\nregisterRootComponent(App);\n",
+    );
+    mkdirSync(join(repoDir, "theme"), { recursive: true });
+    mkdirSync(join(repoDir, "assets"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "config"), { recursive: true });
+    writeFileSync(
+      join(repoDir, "theme", "index.ts"),
+      [
+        'import logo from "../assets/logo.png";',
+        "",
+        "export default { logo, color: 'shared' };",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(join(repoDir, "assets", "logo.png"), "binary");
+    writeFileSync(
+      join(repoDir, "App.test.tsx"),
+      [
+        'import App from "./App";',
+        "",
+        "describe('App', () => {",
+        "  it('renders', () => {",
+        "    expect(App).toBeDefined();",
+        "  });",
+        "});",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(repoDir, "src", "config", "index.ts"),
+      "export default { apiBaseUrl: 'https://example.com' };\n",
+    );
+
+    const convertResult = createConvertResult(repoDir, manifest);
+
+    for (const file of convertResult.movedFiles) {
+      mkdirSync(dirname(file.destinationPath), { recursive: true });
+      writeFileSync(file.destinationPath, file.contents);
+
+      if (file.removeSourcePath && file.sourcePath !== file.destinationPath && existsSync(file.sourcePath)) {
+        rmSync(file.sourcePath, { force: true });
+      }
+    }
+
+    for (const file of convertResult.generatedFiles) {
+      mkdirSync(dirname(file.path), { recursive: true });
+      writeFileSync(file.path, file.contents);
+    }
+
+    writeFileSync(
+      join(repoDir, "rn-mt.generated.runtime.json"),
+      JSON.stringify({ tenant: "fixture-app", environment: "dev" }, null, 2),
+    );
+    writeFileSync(
+      join(repoDir, "rn-mt.generated.ownership.json"),
+      JSON.stringify({ owner: "cli", tool: "rn-mt", artifacts: [] }, null, 2),
+    );
+    writeFileSync(
+      join(repoDir, "rn-mt.generated.asset-fingerprints.json"),
+      JSON.stringify({ tool: "rn-mt", assets: [] }, null, 2),
+    );
+    mkdirSync(join(repoDir, ".rn-mt"), { recursive: true });
+    writeFileSync(join(repoDir, ".rn-mt", "hook-state.json"), "{}\n");
+
+    const flattenResult = createHandoffFlattenResult(repoDir, manifest, "fixture-app", {
+      fileExists: existsSync,
+      readFile: (path) => readFileSync(path, "utf8"),
+    });
+
+    for (const file of flattenResult.restoredFiles) {
+      mkdirSync(dirname(file.destinationPath), { recursive: true });
+      writeFileSync(file.destinationPath, file.contents);
+    }
+
+    const cleanupResult = createHandoffCleanupResult(repoDir, {
+      fileExists: existsSync,
+      readFile: (path) => readFileSync(path, "utf8"),
+    });
+    const packageJsonFile = cleanupResult.rewrittenFiles.find(
+      (file) => file.path === join(repoDir, "package.json"),
+    );
+    const readmeFile = cleanupResult.rewrittenFiles.find(
+      (file) => file.path === join(repoDir, "README.md"),
+    );
+
+    expect(packageJsonFile?.contents).toContain('"start": "expo start"');
+    expect(packageJsonFile?.contents).toContain('"android": "expo start --android"');
+    expect(packageJsonFile?.contents).toContain('"ios": "expo start --ios"');
+    expect(packageJsonFile?.contents).not.toContain("rn-mt:");
+    expect(packageJsonFile?.contents).not.toContain("@rn-mt/runtime");
+    expect(packageJsonFile?.contents).not.toContain("@rn-mt/cli");
+    expect(packageJsonFile?.contents).not.toContain("@rn-mt/expo-plugin");
+    expect(readmeFile?.contents).toBe("# Fixture App\n");
+    expect(cleanupResult.removedPaths).toEqual(
+      expect.arrayContaining([
+        join(repoDir, ".rn-mt"),
+        join(repoDir, "rn-mt.config.json"),
+        join(repoDir, "rn-mt.generated.README.md"),
+        join(repoDir, "rn-mt.generated.asset-fingerprints.json"),
+        join(repoDir, "rn-mt.generated.convert.ownership.json"),
+        join(repoDir, "rn-mt.generated.ownership.json"),
+        join(repoDir, "rn-mt.generated.reconstruction.json"),
+        join(repoDir, "rn-mt.generated.runtime.json"),
+        join(repoDir, "src", "rn-mt"),
+      ]),
+    );
+  });
+});
+
+describe("handoff sanitization helpers", () => {
+  it("strips automation paths and replaces real env files with sanitized examples", () => {
+    const repoDir = createTempRepo("rn-mt-core-handoff-sanitization-");
+    const manifest = parseManifest(
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: repoDir },
+        defaults: { tenant: "fixture-app", environment: "dev" },
+        envSchema: {
+          apiBaseUrl: {
+            source: "API_BASE_URL",
+            required: true,
+          },
+          sentryDsn: {
+            source: "SENTRY_DSN",
+            secret: true,
+          },
+        },
+        tenants: {
+          "fixture-app": { displayName: "Fixture App" },
+        },
+        environments: {
+          dev: { displayName: "Development" },
+          prod: { displayName: "Production" },
+        },
+      }),
+    );
+
+    mkdirSync(join(repoDir, ".github", "workflows"), { recursive: true });
+    writeFileSync(
+      join(repoDir, ".github", "workflows", "release.yml"),
+      "name: release\n",
+    );
+    writeFileSync(join(repoDir, "eas.json"), JSON.stringify({ cli: { version: ">= 1.0.0" } }));
+    writeFileSync(
+      join(repoDir, ".env.dev"),
+      "API_BASE_URL=https://dev.example.com\nSENTRY_DSN=https://secret-dev\n",
+    );
+    writeFileSync(
+      join(repoDir, ".env.fixture-app.dev"),
+      "TENANT_ONLY=fixture-secret\n",
+    );
+    writeFileSync(
+      join(repoDir, ".env.prod"),
+      "API_BASE_URL=https://prod.example.com\n",
+    );
+
+    const result = createHandoffSanitizationResult(repoDir, manifest, "fixture-app", {
+      fileExists: existsSync,
+      readFile: (path) => readFileSync(path, "utf8"),
+    });
+
+    expect(result.reviewRequired).toBe(true);
+    expect(result.generatedFiles).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: join(repoDir, ".env.dev.example"),
+          contents: expect.stringContaining("API_BASE_URL="),
+        }),
+        expect.objectContaining({
+          path: join(repoDir, ".env.prod.example"),
+          contents: expect.stringContaining("SENTRY_DSN="),
+        }),
+      ]),
+    );
+    expect(result.generatedFiles.find((file) => file.path === join(repoDir, ".env.dev.example"))?.contents)
+      .toContain("TENANT_ONLY=");
+    expect(result.generatedFiles.find((file) => file.path === join(repoDir, ".env.dev.example"))?.contents)
+      .toContain("# SENTRY_DSN (secret)");
+    expect(result.generatedFiles.find((file) => file.path === join(repoDir, ".env.dev.example"))?.contents)
+      .not.toContain("https://secret-dev");
+    expect(result.removedPaths).toEqual(
+      expect.arrayContaining([
+        join(repoDir, ".github"),
+        join(repoDir, "eas.json"),
+        join(repoDir, ".env.dev"),
+        join(repoDir, ".env.fixture-app.dev"),
+        join(repoDir, ".env.prod"),
+      ]),
+    );
+    expect(result.reviewChecklist).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining(".github"),
+        expect.stringContaining(".env.dev.example"),
+      ]),
+    );
+  });
+});
+
+describe("handoff isolation audit helpers", () => {
+  it("fails when exported output still contains other-tenant residue", () => {
+    const repoDir = createTempRepo("rn-mt-core-handoff-audit-");
+    const manifest = parseManifest(
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: repoDir },
+        defaults: { tenant: "acme", environment: "dev" },
+        tenants: {
+          acme: { displayName: "Acme" },
+          beta: { displayName: "Beta Corp" },
+        },
+        environments: {
+          dev: { displayName: "Development" },
+        },
+      }),
+    );
+
+    writeFileSync(join(repoDir, "README.md"), "# Acme App\nInternal note: Beta Corp migration pending.\n");
+    writeFileSync(join(repoDir, "package.json"), JSON.stringify({ name: "acme-app" }));
+
+    const result = createHandoffIsolationAuditResult(repoDir, manifest, "acme", {
+      fileExists: existsSync,
+      readFile: (path) => readFileSync(path, "utf8"),
+    });
+
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        code: "other-tenant-residue",
+        path: join(repoDir, "README.md"),
+        severity: "P0",
+        confidence: "high",
+      }),
+    ]);
+    expect(result.findings[0]?.evidence).toEqual(
+      expect.arrayContaining(["Found tenant display name Beta Corp: Beta Corp"]),
+    );
+  });
+});
+
+describe("codemod helpers", () => {
+  it("previews shared import rewrites back to the current facade surface", () => {
+    const repoDir = createTempRepo("rn-mt-core-codemod-current-imports-");
+    const manifest = createConvertManifest(repoDir, "fixture-app");
+
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "fixture-app",
+        dependencies: { expo: "~52.0.0" },
+      }),
+    );
+    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      [
+        'import theme from "./theme";',
+        'import config from "./src/config";',
+        "",
+        "export default function App() {",
+        "  return theme && config ? null : null;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(repoDir, "index.js"),
+      "import { registerRootComponent } from 'expo';\nregisterRootComponent(App);\n",
+    );
+    mkdirSync(join(repoDir, "theme"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "config"), { recursive: true });
+    writeFileSync(join(repoDir, "theme", "index.ts"), "export default {};\n");
+    writeFileSync(join(repoDir, "src", "config", "index.ts"), "export default {};\n");
+
+    const convertResult = createConvertResult(repoDir, manifest);
+
+    for (const file of convertResult.movedFiles) {
+      mkdirSync(dirname(file.destinationPath), { recursive: true });
+      writeFileSync(file.destinationPath, file.contents);
+
+      if (file.removeSourcePath && file.sourcePath !== file.destinationPath && existsSync(file.sourcePath)) {
+        rmSync(file.sourcePath, { force: true });
+      }
+    }
+
+    for (const file of convertResult.generatedFiles) {
+      mkdirSync(dirname(file.path), { recursive: true });
+      writeFileSync(file.path, file.contents);
+    }
+
+    writeFileSync(
+      join(repoDir, "src", "rn-mt", "shared", "App.tsx"),
+      [
+        'import theme from "./theme/index";',
+        'import config from "./src/config/index";',
+        "",
+        "export default function App() {",
+        "  return theme && config ? null : null;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+
+    const result = createCurrentImportsCodemodResult(repoDir, {
+      fileExists: existsSync,
+      readFile: (path) => readFileSync(path, "utf8"),
+    });
+
+    expect(result.codemod).toBe("current-imports");
+    expect(result.changes).toEqual([
+      expect.objectContaining({
+        path: join(repoDir, "src", "rn-mt", "shared", "App.tsx"),
+        before: expect.stringContaining('import theme from "./theme/index";'),
+        after: expect.stringContaining('import theme from "../current/theme/index";'),
+      }),
+    ]);
+  });
+});
+
 describe("manifest parsing", () => {
   it("rejects malformed envSchema entries", () => {
     expect(() =>
@@ -583,6 +1609,15 @@ describe("convert helpers", () => {
   it("creates an rn-mt skeleton with shared sources, current facades, and root wrappers", () => {
     const repoDir = createTempRepo("rn-mt-core-convert-");
 
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "fixture-app",
+        dependencies: { expo: "~52.0.0" },
+      }),
+    );
+    writeFileSync(join(repoDir, "README.md"), "# Fixture App\n");
+    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
     writeFileSync(join(repoDir, "App.tsx"), "export default function App() { return null; }\n");
     writeFileSync(
       join(repoDir, "index.js"),
@@ -591,19 +1626,26 @@ describe("convert helpers", () => {
 
     const result = createConvertResult(repoDir, createConvertManifest(repoDir));
 
-    expect(result.movedFiles).toEqual([
-      {
-        sourcePath: join(repoDir, "App.tsx"),
-        destinationPath: join(repoDir, "src", "rn-mt", "shared", "App.tsx"),
-        contents: "export default function App() { return null; }\n",
-      },
-      {
-        sourcePath: join(repoDir, "index.js"),
-        destinationPath: join(repoDir, "src", "rn-mt", "shared", "index.js"),
-        contents:
-          "import { registerRootComponent } from 'expo';\nregisterRootComponent(App);\n",
-      },
-    ]);
+    expect(result.movedFiles).toEqual(
+      expect.arrayContaining([
+        {
+          sourcePath: join(repoDir, "App.tsx"),
+          destinationPath: join(repoDir, "src", "rn-mt", "shared", "App.tsx"),
+          contents: "export default function App() { return null; }\n",
+        },
+        {
+          sourcePath: join(repoDir, "index.js"),
+          destinationPath: join(repoDir, "src", "rn-mt", "shared", "index.js"),
+          contents:
+            "import { registerRootComponent } from 'expo';\nregisterRootComponent(App);\n",
+        },
+        expect.objectContaining({
+          sourcePath: join(repoDir, "package.json"),
+          destinationPath: join(repoDir, "package.json"),
+          contents: expect.stringContaining('"rn-mt:start": "rn-mt run -- expo start"'),
+        }),
+      ]),
+    );
     expect(result.generatedFiles).toEqual(
       expect.arrayContaining([
         {
@@ -655,8 +1697,324 @@ describe("convert helpers", () => {
           kind: "ownership-metadata",
           contents: expect.stringContaining('"owner": "cli"'),
         },
+        {
+          path: join(repoDir, "rn-mt.generated.reconstruction.json"),
+          kind: "reconstruction-metadata",
+          contents: expect.stringContaining('"defaultTenant": "acme"'),
+        },
+        {
+          path: join(repoDir, "rn-mt.generated.README.md"),
+          kind: "repo-readme",
+          contents: expect.stringContaining("# rn-mt Ownership and Handoff Guide"),
+        },
       ]),
     );
+    expect(result.movedFiles).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourcePath: join(repoDir, "README.md"),
+          destinationPath: join(repoDir, "README.md"),
+          contents: expect.stringContaining(
+            "[rn-mt ownership and handoff guide](./rn-mt.generated.README.md)",
+          ),
+        }),
+      ]),
+    );
+    expect(result.userOwnedFiles).toEqual([
+      {
+        path: join(repoDir, "src", "rn-mt", "extensions", "index.ts"),
+        contents: [
+          "// User-owned rn-mt extension module. Safe to edit.",
+          "// Add custom helpers here instead of editing CLI-owned generated files.",
+          "export const rnMtExtensions = {} as const;",
+          "",
+        ].join("\n"),
+      },
+    ]);
+  });
+
+  it("persists reconstruction metadata for moved sources, current facades, and root-wrapper behavior", () => {
+    const repoDir = createTempRepo("rn-mt-core-convert-reconstruction-");
+
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "fixture-app",
+        dependencies: { expo: "~52.0.0" },
+      }),
+    );
+    writeFileSync(join(repoDir, "README.md"), "# Fixture App\n");
+    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      [
+        'import theme from "./theme";',
+        'import config from "./src/config";',
+        "",
+        "export default function App() {",
+        "  return null;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(repoDir, "index.js"),
+      "import { registerRootComponent } from 'expo';\nregisterRootComponent(App);\n",
+    );
+    mkdirSync(join(repoDir, "theme"), { recursive: true });
+    mkdirSync(join(repoDir, "assets"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "config"), { recursive: true });
+    writeFileSync(
+      join(repoDir, "theme", "index.ts"),
+      [
+        'import logo from "../assets/logo.png";',
+        "",
+        "export default { logo };",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(join(repoDir, "assets", "logo.png"), "binary");
+    writeFileSync(
+      join(repoDir, "App.test.tsx"),
+      [
+        'import App from "./App";',
+        "",
+        "describe('App', () => {",
+        "  it('renders', () => {",
+        "    expect(App).toBeDefined();",
+        "  });",
+        "});",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(repoDir, "src", "config", "index.ts"),
+      "export default { apiBaseUrl: 'https://example.com' };\n",
+    );
+
+    const result = createConvertResult(repoDir, createConvertManifest(repoDir));
+    const reconstructionMetadata = result.generatedFiles.find(
+      (file) => file.kind === "reconstruction-metadata",
+    );
+
+    expect(reconstructionMetadata).toBeDefined();
+    expect(reconstructionMetadata?.path).toBe(
+      join(repoDir, "rn-mt.generated.reconstruction.json"),
+    );
+    expect(JSON.parse(reconstructionMetadata?.contents ?? "null")).toEqual({
+      schemaVersion: 1,
+      tool: "rn-mt",
+      defaultTenant: "acme",
+      sharedRootPath: "src/rn-mt/shared",
+      currentRootPath: "src/rn-mt/current",
+      entries: [
+        {
+          originalPath: "App.test.tsx",
+          sharedPath: "src/rn-mt/shared/App.test.tsx",
+          originalPathBehavior: "removed",
+        },
+        {
+          originalPath: "App.tsx",
+          sharedPath: "src/rn-mt/shared/App.tsx",
+          currentPath: "src/rn-mt/current/App.tsx",
+          originalPathBehavior: "replaced-with-root-wrapper",
+        },
+        {
+          originalPath: "assets/logo.png",
+          sharedPath: "src/rn-mt/shared/assets/logo.png",
+          currentPath: "src/rn-mt/current/assets/logo.png",
+          originalPathBehavior: "removed",
+        },
+        {
+          originalPath: "index.js",
+          sharedPath: "src/rn-mt/shared/index.js",
+          currentPath: "src/rn-mt/current/index.js",
+          originalPathBehavior: "replaced-with-root-wrapper",
+        },
+        {
+          originalPath: "src/config/index.ts",
+          sharedPath: "src/rn-mt/shared/src/config/index.ts",
+          currentPath: "src/rn-mt/current/src/config/index.ts",
+          originalPathBehavior: "removed",
+        },
+        {
+          originalPath: "theme/index.ts",
+          sharedPath: "src/rn-mt/shared/theme/index.ts",
+          currentPath: "src/rn-mt/current/theme/index.ts",
+          originalPathBehavior: "removed",
+        },
+      ],
+    });
+  });
+
+  it("rewrites package scripts to keep familiar entries while adding rn-mt helpers", () => {
+    const repoDir = createTempRepo("rn-mt-core-convert-scripts-");
+
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "fixture-app",
+        packageManager: "pnpm@10.25.0",
+        scripts: {
+          start: "expo start --clear",
+          android: "expo run:android --variant preview",
+          ios: "expo run:ios --configuration Debug",
+          test: "vitest",
+        },
+        dependencies: {
+          expo: "~52.0.0",
+          react: "19.0.0",
+        },
+        devDependencies: {
+          typescript: "^5.7.2",
+        },
+      }),
+    );
+    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
+    writeFileSync(join(repoDir, "App.tsx"), "export default function App() { return null; }\n");
+
+    const result = createConvertResult(repoDir, createConvertManifest(repoDir));
+    const packageJsonFile = result.movedFiles.find(
+      (file) => file.sourcePath === join(repoDir, "package.json"),
+    );
+
+    expect(packageJsonFile?.destinationPath).toBe(join(repoDir, "package.json"));
+    expect(packageJsonFile?.contents).toContain('"start": "rn-mt run -- expo start --clear"');
+    expect(packageJsonFile?.contents).toContain(
+      '"android": "rn-mt run --platform android -- expo run:android --variant preview"',
+    );
+    expect(packageJsonFile?.contents).toContain(
+      '"ios": "rn-mt run --platform ios -- expo run:ios --configuration Debug"',
+    );
+    expect(packageJsonFile?.contents).toContain('"rn-mt:sync": "rn-mt sync"');
+    expect(packageJsonFile?.contents).toContain(
+      '"rn-mt:sync:android": "rn-mt sync --platform android"',
+    );
+    expect(packageJsonFile?.contents).toContain(
+      '"rn-mt:sync:ios": "rn-mt sync --platform ios"',
+    );
+    expect(packageJsonFile?.contents).toContain(
+      '"rn-mt:start": "rn-mt run -- expo start --clear"',
+    );
+    expect(packageJsonFile?.contents).toContain(
+      '"rn-mt:android": "rn-mt run --platform android -- expo run:android --variant preview"',
+    );
+    expect(packageJsonFile?.contents).toContain(
+      '"rn-mt:ios": "rn-mt run --platform ios -- expo run:ios --configuration Debug"',
+    );
+    expect(packageJsonFile?.contents).toContain(
+      '"prestart": "rn-mt hook prestart"',
+    );
+    expect(packageJsonFile?.contents).toContain(
+      '"preandroid": "rn-mt hook preandroid"',
+    );
+    expect(packageJsonFile?.contents).toContain(
+      '"preios": "rn-mt hook preios"',
+    );
+    expect(packageJsonFile?.contents).toContain(
+      '"postinstall": "rn-mt hook postinstall"',
+    );
+    expect(packageJsonFile?.contents).toContain('"@rn-mt/runtime": "0.1.0"');
+    expect(packageJsonFile?.contents).toContain('"@rn-mt/expo-plugin": "0.1.0"');
+    expect(packageJsonFile?.contents).toContain('"@rn-mt/cli": "0.1.0"');
+    expect(packageJsonFile?.contents).toContain('"test": "vitest"');
+    expect(result.packageManager).toEqual({
+      name: "pnpm",
+      source: "packageManager-field",
+      raw: "pnpm@10.25.0",
+    });
+    expect(result.localPackages).toEqual([
+      {
+        name: "@rn-mt/runtime",
+        version: "0.1.0",
+        section: "dependencies",
+      },
+      {
+        name: "@rn-mt/cli",
+        version: "0.1.0",
+        section: "devDependencies",
+      },
+      {
+        name: "@rn-mt/expo-plugin",
+        version: "0.1.0",
+        section: "dependencies",
+      },
+    ]);
+    expect(result.installCommand).toBe("pnpm install");
+  });
+
+  it("adds a stable rn-mt guide link to an existing repo README", () => {
+    const repoDir = createTempRepo("rn-mt-core-convert-readme-link-");
+
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "fixture-app",
+        dependencies: {
+          expo: "~52.0.0",
+        },
+      }),
+    );
+    writeFileSync(join(repoDir, "README.md"), "# Fixture App\n\nExisting repo notes.\n");
+    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
+    writeFileSync(join(repoDir, "App.tsx"), "export default function App() { return null; }\n");
+
+    const result = createConvertResult(repoDir, createConvertManifest(repoDir));
+    const readmeFile = result.movedFiles.find(
+      (file) => file.sourcePath === join(repoDir, "README.md"),
+    );
+
+    expect(readmeFile?.destinationPath).toBe(join(repoDir, "README.md"));
+    expect(readmeFile?.contents).toContain("<!-- rn-mt:guide-link:start -->");
+    expect(readmeFile?.contents).toContain(
+      "[rn-mt ownership and handoff guide](./rn-mt.generated.README.md)",
+    );
+    expect(readmeFile?.contents).toContain("Existing repo notes.");
+  });
+
+  it("wires local packages for bare react native repos and derives install guidance from lockfiles", () => {
+    const repoDir = createTempRepo("rn-mt-core-convert-bare-packages-");
+
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "fixture-app",
+        dependencies: {
+          "react-native": "0.85.0",
+        },
+      }),
+    );
+    writeFileSync(join(repoDir, "yarn.lock"), "# yarn lockfile");
+    mkdirSync(join(repoDir, "ios"), { recursive: true });
+    mkdirSync(join(repoDir, "android"), { recursive: true });
+    writeFileSync(join(repoDir, "App.tsx"), "export default function App() { return null; }\n");
+
+    const result = createConvertResult(repoDir, createConvertManifest(repoDir));
+    const packageJsonFile = result.movedFiles.find(
+      (file) => file.sourcePath === join(repoDir, "package.json"),
+    );
+
+    expect(packageJsonFile?.contents).toContain('"@rn-mt/runtime": "0.1.0"');
+    expect(packageJsonFile?.contents).toContain('"@rn-mt/cli": "0.1.0"');
+    expect(packageJsonFile?.contents).not.toContain("@rn-mt/expo-plugin");
+    expect(result.packageManager).toEqual({
+      name: "yarn",
+      source: "yarn-lock",
+      raw: "yarn.lock",
+    });
+    expect(result.localPackages).toEqual([
+      {
+        name: "@rn-mt/runtime",
+        version: "0.1.0",
+        section: "dependencies",
+      },
+      {
+        name: "@rn-mt/cli",
+        version: "0.1.0",
+        section: "devDependencies",
+      },
+    ]);
+    expect(result.installCommand).toBe("yarn install");
   });
 
   it("rejects convert when root entry wrappers are already CLI-owned", () => {
@@ -801,6 +2159,277 @@ describe("convert helpers", () => {
     expect(appShared?.contents).toContain('import theme from "../current/theme/index";');
     expect(themeCurrent?.contents).toContain('../../tenants/acme/theme/index');
     expect(appCurrent?.contents).toContain('../shared/App');
+  });
+
+  it("creates an optional host config bridge for an explicit config module path", () => {
+    const repoDir = createTempRepo("rn-mt-core-convert-bridge-config-");
+
+    mkdirSync(join(repoDir, "src", "config"), { recursive: true });
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      [
+        'import config from "./src/config";',
+        "",
+        "export default function App() {",
+        "  return config ? null : null;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(repoDir, "src", "config", "index.ts"),
+      "export default { apiBaseUrl: 'https://example.com' };\n",
+    );
+
+    const result = createConvertResult(repoDir, createConvertManifest(repoDir), {
+      bridgeConfigModulePath: "src/config/index.ts",
+    });
+    const bridgeFile = result.generatedFiles.find((file) => file.kind === "host-config-bridge");
+    const movedConfigFile = result.movedFiles.find(
+      (file) => file.sourcePath === join(repoDir, "src", "config", "index.ts"),
+    );
+
+    expect(movedConfigFile).toEqual(
+      expect.objectContaining({
+        sourcePath: join(repoDir, "src", "config", "index.ts"),
+        destinationPath: join(
+          repoDir,
+          "src",
+          "rn-mt",
+          "shared",
+          "src",
+          "config",
+          "index.ts",
+        ),
+        removeSourcePath: false,
+      }),
+    );
+    expect(bridgeFile).toEqual({
+      path: join(repoDir, "src", "config", "index.ts"),
+      kind: "host-config-bridge",
+      contents: [
+        "// Generated by rn-mt. CLI-owned host config bridge. Optional bridge mode. Do not edit directly.",
+        'export { default } from "../rn-mt/current/src/config/index";',
+        'export * from "../rn-mt/current/src/config/index";',
+        "",
+      ].join("\n"),
+    });
+    expect(
+      JSON.parse(
+        result.generatedFiles.find((file) => file.kind === "reconstruction-metadata")
+          ?.contents ?? "null",
+      ),
+    ).toEqual(
+      expect.objectContaining({
+        entries: expect.arrayContaining([
+          expect.objectContaining({
+            originalPath: "src/config/index.ts",
+            sharedPath: "src/rn-mt/shared/src/config/index.ts",
+            currentPath: "src/rn-mt/current/src/config/index.ts",
+            originalPathBehavior: "replaced-with-host-config-bridge",
+          }),
+        ]),
+      }),
+    );
+  });
+
+  it("rejects bridge mode when the selected module is not a host config module", () => {
+    const repoDir = createTempRepo("rn-mt-core-convert-bridge-unsupported-");
+
+    mkdirSync(join(repoDir, "theme"), { recursive: true });
+    writeFileSync(join(repoDir, "App.tsx"), "export default function App() { return null; }\n");
+    writeFileSync(
+      join(repoDir, "theme", "index.ts"),
+      "export default { color: 'blue' };\n",
+    );
+
+    expect(() =>
+      createConvertResult(repoDir, createConvertManifest(repoDir), {
+        bridgeConfigModulePath: "theme/index.ts",
+      }),
+    ).toThrow("Bridge mode only supports explicit host config modules.");
+  });
+
+  it("creates a tenant override by copying a shared file into the mirrored tenant path", () => {
+    const repoDir = createTempRepo("rn-mt-core-override-create-");
+
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), { recursive: true });
+    writeFileSync(
+      join(repoDir, "src", "rn-mt", "shared", "theme", "index.ts"),
+      "export default { color: 'shared' };\n",
+    );
+
+    const result = createOverrideCreateResult(
+      repoDir,
+      createConvertManifest(repoDir),
+      "theme/index.ts",
+    );
+
+    expect(result.copiedFile).toEqual({
+      sourcePath: join(repoDir, "src", "rn-mt", "shared", "theme", "index.ts"),
+      destinationPath: join(
+        repoDir,
+        "src",
+        "rn-mt",
+        "tenants",
+        "acme",
+        "theme",
+        "index.ts",
+      ),
+      contents: "export default { color: 'shared' };\n",
+    });
+    expect(result.generatedFiles).toEqual([
+      {
+        path: join(repoDir, "src", "rn-mt", "current", "theme", "index.ts"),
+        kind: "current-facade",
+        contents: [
+          "// Generated by rn-mt. CLI-owned current facade. Do not edit directly.",
+          'export { default } from "../../tenants/acme/theme/index";',
+          'export * from "../../tenants/acme/theme/index";',
+          "",
+        ].join("\n"),
+      },
+    ]);
+  });
+
+  it("rejects override create when the mirrored tenant file already exists", () => {
+    const repoDir = createTempRepo("rn-mt-core-override-create-existing-");
+
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "rn-mt", "tenants", "acme", "theme"), {
+      recursive: true,
+    });
+    writeFileSync(
+      join(repoDir, "src", "rn-mt", "shared", "theme", "index.ts"),
+      "export default { color: 'shared' };\n",
+    );
+    writeFileSync(
+      join(repoDir, "src", "rn-mt", "tenants", "acme", "theme", "index.ts"),
+      "export default { color: 'tenant' };\n",
+    );
+
+    expect(() =>
+      createOverrideCreateResult(
+        repoDir,
+        createConvertManifest(repoDir),
+        "theme/index.ts",
+      ),
+    ).toThrow(
+      `Tenant override already exists: ${join(repoDir, "src", "rn-mt", "tenants", "acme", "theme", "index.ts")}`,
+    );
+  });
+
+  it("removes a tenant override and repoints the current facade back to shared", () => {
+    const repoDir = createTempRepo("rn-mt-core-override-remove-");
+
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "rn-mt", "tenants", "acme", "theme"), {
+      recursive: true,
+    });
+    writeFileSync(
+      join(repoDir, "src", "rn-mt", "shared", "theme", "index.ts"),
+      "export default { color: 'shared' };\n",
+    );
+    writeFileSync(
+      join(repoDir, "src", "rn-mt", "tenants", "acme", "theme", "index.ts"),
+      "export default { color: 'tenant' };\n",
+    );
+
+    const result = createOverrideRemoveResult(
+      repoDir,
+      createConvertManifest(repoDir),
+      "theme/index.ts",
+    );
+
+    expect(result.removedFilePath).toBe(
+      join(repoDir, "src", "rn-mt", "tenants", "acme", "theme", "index.ts"),
+    );
+    expect(result.generatedFiles).toEqual([
+      {
+        path: join(repoDir, "src", "rn-mt", "current", "theme", "index.ts"),
+        kind: "current-facade",
+        contents: [
+          "// Generated by rn-mt. CLI-owned current facade. Do not edit directly.",
+          'export { default } from "../../shared/theme/index";',
+          'export * from "../../shared/theme/index";',
+          "",
+        ].join("\n"),
+      },
+    ]);
+  });
+
+  it("rejects override remove when the tenant override does not exist", () => {
+    const repoDir = createTempRepo("rn-mt-core-override-remove-missing-");
+
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), { recursive: true });
+    writeFileSync(
+      join(repoDir, "src", "rn-mt", "shared", "theme", "index.ts"),
+      "export default { color: 'shared' };\n",
+    );
+
+    expect(() =>
+      createOverrideRemoveResult(
+        repoDir,
+        createConvertManifest(repoDir),
+        "theme/index.ts",
+      ),
+    ).toThrow(
+      `Tenant override not found: ${join(repoDir, "src", "rn-mt", "tenants", "acme", "theme", "index.ts")}`,
+    );
+  });
+});
+
+describe("audit helpers", () => {
+  it("emits an override-candidate finding when a shared file embeds the default tenant branding", () => {
+    const repoDir = createTempRepo("rn-mt-core-audit-override-candidate-");
+
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), { recursive: true });
+    writeFileSync(
+      join(repoDir, "src", "rn-mt", "shared", "theme", "branding.ts"),
+      [
+        "export default {",
+        "  tenantId: 'acme',",
+        "  displayName: 'Acme',",
+        "};",
+        "",
+      ].join("\n"),
+    );
+
+    const result = createAuditResult(repoDir, createConvertManifest(repoDir));
+
+    expect(result.findings).toEqual([
+      {
+        code: "override-candidate",
+        path: join(repoDir, "src", "rn-mt", "shared", "theme", "branding.ts"),
+        severity: "P2",
+        confidence: "high",
+        evidence: [
+          'Matched default tenant id "acme" in shared file contents.',
+          'Matched default tenant display name "Acme" in shared file contents.',
+        ],
+        summary:
+          "Shared file appears tenant-specific for the current default tenant and likely wants a mirrored tenant override.",
+      },
+    ]);
+  });
+
+  it("ignores test files and non-triggering shared files during override-candidate audit", () => {
+    const repoDir = createTempRepo("rn-mt-core-audit-ignored-");
+
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "__tests__"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), { recursive: true });
+    writeFileSync(
+      join(repoDir, "src", "rn-mt", "shared", "__tests__", "branding.test.ts"),
+      "describe('Acme branding', () => expect(true).toBe(true));\n",
+    );
+    writeFileSync(
+      join(repoDir, "src", "rn-mt", "shared", "theme", "palette.ts"),
+      "export default { color: 'blue' };\n",
+    );
+
+    const result = createAuditResult(repoDir, createConvertManifest(repoDir));
+
+    expect(result.findings).toEqual([]);
   });
 });
 
@@ -953,6 +2582,14 @@ describe("sync helpers", () => {
           displayName: "Demo App (Dev)",
           nativeId: "com.rnmt.demo-app.dev",
         },
+        native: {
+          android: {
+            applicationId: "com.rnmt.demo-app.dev",
+          },
+          ios: {
+            bundleIdentifier: "com.rnmt.demo-app.dev",
+          },
+        },
       },
       identity: {
         displayName: "Demo App (Dev)",
@@ -967,6 +2604,10 @@ describe("sync helpers", () => {
       },
       flags: {},
       assets: {},
+      routes: [],
+      features: [],
+      menus: [],
+      actions: [],
     });
     expect(result.generatedFiles).toHaveLength(2);
     expect(result.generatedFiles[0]).toEqual({
@@ -986,10 +2627,11 @@ describe("sync helpers", () => {
       tool: "rn-mt",
       owner: "cli",
       artifacts: [
-        {
+        expect.objectContaining({
           path: "rn-mt.generated.runtime.json",
           kind: "runtime-artifact",
-        },
+          hash: expect.any(String),
+        }),
       ],
     });
   });
@@ -1041,6 +2683,717 @@ describe("sync helpers", () => {
       }),
     ).toThrow(
       "Missing required env inputs for acme/staging: apiBaseUrl (API_BASE_URL). Set these variables in the command environment before running sync.",
+    );
+  });
+
+  it("resolves route registry add, replace, and disable operations by stable id", () => {
+    const manifest = parseManifest(
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: "/tmp/demo-app" },
+        routes: [
+          { id: "home", path: "/", screen: "HomeScreen" },
+          { id: "settings", path: "/settings", screen: "SettingsScreen" },
+        ],
+        defaults: { tenant: "acme", environment: "dev" },
+        tenants: {
+          acme: {
+            displayName: "Acme",
+            routes: {
+              replace: [
+                { id: "home", path: "/acme", screen: "AcmeHomeScreen" },
+              ],
+            },
+          },
+        },
+        environments: {
+          dev: {
+            displayName: "Development",
+            routes: {
+              add: [
+                { id: "debug", path: "/debug", screen: "DebugScreen" },
+              ],
+            },
+          },
+        },
+        platforms: {
+          android: {},
+        },
+        combinations: {
+          "environment:dev+tenant:acme+platform:android": {
+            routes: {
+              disable: ["settings"],
+            },
+          },
+        },
+      }),
+    );
+
+    const result = createSyncResult("/tmp/demo-app", manifest, {
+      tenant: "acme",
+      environment: "dev",
+      platform: "android",
+    });
+
+    expect(result.runtime.routes).toEqual([
+      { id: "home", path: "/acme", screen: "AcmeHomeScreen" },
+      { id: "debug", path: "/debug", screen: "DebugScreen" },
+    ]);
+  });
+
+  it("resolves feature, menu, and action registries with static flag gating", () => {
+    const manifest = parseManifest(
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: "/tmp/demo-app" },
+        flags: {
+          chatEnabled: false,
+          paymentsEnabled: true,
+        },
+        features: [
+          { id: "chat", module: "ChatFeature", enabledByFlag: "chatEnabled" },
+          { id: "payments", module: "PaymentsFeature", enabledByFlag: "paymentsEnabled" },
+        ],
+        menus: [
+          { id: "home-menu", label: "Home", actionId: "open-home" },
+        ],
+        actions: [
+          { id: "legacy-support", label: "Call Support", handler: "callSupport" },
+          { id: "pay", label: "Pay", handler: "startPay" },
+        ],
+        defaults: { tenant: "acme", environment: "dev" },
+        tenants: {
+          acme: {
+            displayName: "Acme",
+            menus: {
+              replace: [
+                { id: "home-menu", label: "Acme Home", actionId: "open-home" },
+              ],
+            },
+          },
+        },
+        environments: {
+          dev: {
+            displayName: "Development",
+            features: {
+              add: [
+                { id: "debug-tools", module: "DebugToolsFeature" },
+              ],
+            },
+          },
+        },
+        platforms: {
+          android: {},
+        },
+        combinations: {
+          "environment:dev+tenant:acme+platform:android": {
+            actions: {
+              disable: ["legacy-support"],
+            },
+          },
+        },
+      }),
+    );
+
+    const result = createSyncResult("/tmp/demo-app", manifest, {
+      tenant: "acme",
+      environment: "dev",
+      platform: "android",
+    });
+
+    expect(result.runtime.features).toEqual([
+      { id: "payments", module: "PaymentsFeature", enabledByFlag: "paymentsEnabled" },
+      { id: "debug-tools", module: "DebugToolsFeature" },
+    ]);
+    expect(result.runtime.menus).toEqual([
+      { id: "home-menu", label: "Acme Home", actionId: "open-home" },
+    ]);
+    expect(result.runtime.actions).toEqual([
+      { id: "pay", label: "Pay", handler: "startPay" },
+    ]);
+  });
+
+  it("generates deterministic derived iOS icon badge assets with fingerprint tracking", () => {
+    const repoDir = createTempRepo("rn-mt-core-derived-assets-");
+    const iconPath = join(repoDir, "assets", "icon.png");
+
+    mkdirSync(join(repoDir, "assets"), { recursive: true });
+    writeFileSync(iconPath, "icon-v1");
+
+    const manifest = parseManifest(
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: repoDir },
+        assets: {
+          icon: "assets/icon.png",
+        },
+        defaults: { tenant: "acme", environment: "dev" },
+        tenants: {
+          acme: { displayName: "Acme" },
+        },
+        environments: {
+          dev: { displayName: "Development" },
+        },
+        platforms: {
+          ios: {},
+        },
+      }),
+    );
+
+    const result = createSyncResult(repoDir, manifest, {
+      tenant: "acme",
+      environment: "dev",
+      platform: "ios",
+    });
+    const derivedAsset = result.generatedFiles.find((file) => file.kind === "derived-asset");
+    const fingerprintMetadata = result.generatedFiles.find(
+      (file) => file.kind === "asset-fingerprint-metadata",
+    );
+
+    expect(derivedAsset?.path).toBe(join(repoDir, "ios", "rn-mt.generated.icon.dev.svg"));
+    expect(derivedAsset?.contents).toContain(">DEV<");
+    expect(derivedAsset?.contents).toContain('href="../assets/icon.png"');
+    expect(derivedAsset?.contents).toContain("fingerprint:");
+    expect(fingerprintMetadata?.contents).toContain("rn-mt.generated.icon.dev.svg");
+
+    writeFileSync(iconPath, "icon-v2");
+
+    const changedResult = createSyncResult(repoDir, manifest, {
+      tenant: "acme",
+      environment: "dev",
+      platform: "ios",
+    });
+    const changedDerivedAsset = changedResult.generatedFiles.find(
+      (file) => file.kind === "derived-asset",
+    );
+
+    expect(changedDerivedAsset?.contents).not.toEqual(derivedAsset?.contents);
+  });
+
+  it("reuses existing derived asset contents when stored fingerprints still match", () => {
+    const repoDir = createTempRepo("rn-mt-core-derived-assets-reuse-");
+    const iconPath = join(repoDir, "assets", "icon.png");
+    const derivedAssetPath = join(repoDir, "ios", "rn-mt.generated.icon.dev.svg");
+
+    mkdirSync(join(repoDir, "assets"), { recursive: true });
+    mkdirSync(join(repoDir, "ios"), { recursive: true });
+    writeFileSync(iconPath, "icon-v1");
+    writeFileSync(derivedAssetPath, "cached-derived-asset\n");
+
+    const sourceFingerprint = createHash("sha256").update("icon-v1").digest("hex");
+    writeFileSync(
+      join(repoDir, "rn-mt.generated.asset-fingerprints.json"),
+      JSON.stringify(
+        {
+          schemaVersion: 1,
+          tool: "rn-mt",
+          derivedAssets: [
+            {
+              outputPath: "ios/rn-mt.generated.icon.dev.svg",
+              platform: "ios",
+              environment: "dev",
+              sourcePath: "assets/icon.png",
+              sourceFingerprint,
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+    );
+
+    const manifest = parseManifest(
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: repoDir },
+        assets: {
+          icon: "assets/icon.png",
+        },
+        defaults: { tenant: "acme", environment: "dev" },
+        tenants: {
+          acme: { displayName: "Acme" },
+        },
+        environments: {
+          dev: { displayName: "Development" },
+        },
+        platforms: {
+          ios: {},
+        },
+      }),
+    );
+
+    const result = createSyncResult(repoDir, manifest, {
+      tenant: "acme",
+      environment: "dev",
+      platform: "ios",
+    });
+    const derivedAsset = result.generatedFiles.find((file) => file.kind === "derived-asset");
+
+    expect(derivedAsset?.contents).toBe("cached-derived-asset\n");
+  });
+
+  it("keeps production derived icons unbadged by default", () => {
+    const repoDir = createTempRepo("rn-mt-core-derived-assets-production-");
+    const iconPath = join(repoDir, "assets", "icon.png");
+
+    mkdirSync(join(repoDir, "assets"), { recursive: true });
+    writeFileSync(iconPath, "icon-prod");
+
+    const manifest = parseManifest(
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: repoDir },
+        assets: {
+          icon: "assets/icon.png",
+        },
+        defaults: { tenant: "acme", environment: "prod" },
+        tenants: {
+          acme: { displayName: "Acme" },
+        },
+        environments: {
+          prod: { displayName: "Production" },
+        },
+        platforms: {
+          ios: {},
+        },
+      }),
+    );
+
+    const result = createSyncResult(repoDir, manifest, {
+      tenant: "acme",
+      environment: "prod",
+      platform: "ios",
+    });
+    const derivedAsset = result.generatedFiles.find((file) => file.kind === "derived-asset");
+
+    expect(derivedAsset?.path).toBe(join(repoDir, "ios", "rn-mt.generated.icon.prod.svg"));
+    expect(derivedAsset?.contents).toContain('href="../assets/icon.png"');
+    expect(derivedAsset?.contents).not.toContain(">PROD<");
+    expect(derivedAsset?.contents).not.toContain('fill="#f59e0b"');
+  });
+
+  it("emits an Expo target context bridge when Expo computed config files are present", () => {
+    const repoDir = createTempRepo("rn-mt-core-expo-bridge-");
+    const iconPath = join(repoDir, "assets", "icon.png");
+
+    mkdirSync(join(repoDir, "assets"), { recursive: true });
+    writeFileSync(join(repoDir, "app.config.ts"), "export default {};\n");
+    writeFileSync(iconPath, "icon-dev");
+
+    const manifest = parseManifest(
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: repoDir },
+        config: {
+          identity: {
+            appName: "Keep Nexus",
+            nativeId: "com.keep.nexus",
+          },
+        },
+        assets: {
+          icon: "assets/icon.png",
+        },
+        defaults: { tenant: "acme", environment: "dev" },
+        tenants: {
+          acme: { displayName: "Acme" },
+        },
+        environments: {
+          dev: { displayName: "Development" },
+        },
+        platforms: {
+          ios: {},
+        },
+      }),
+    );
+
+    const result = createSyncResult(repoDir, manifest, {
+      tenant: "acme",
+      environment: "dev",
+      platform: "ios",
+    });
+    const expoTargetContext = result.generatedFiles.find(
+      (file) => file.kind === "expo-target-context",
+    );
+
+    expect(expoTargetContext?.path).toBe(join(repoDir, "rn-mt.generated.expo.js"));
+    expect(expoTargetContext?.contents).toContain('"tenant": "acme"');
+    expect(expoTargetContext?.contents).toContain('"environment": "dev"');
+    expect(expoTargetContext?.contents).toContain('"platform": "ios"');
+    expect(expoTargetContext?.contents).toContain('"runtimeConfigPath": "./rn-mt.generated.runtime.json"');
+    expect(expoTargetContext?.contents).toContain('"iconPath": "./ios/rn-mt.generated.icon.dev.svg"');
+  });
+
+  it("emits Android tenant and environment flavor dimensions for bare RN fixtures", () => {
+    const repoDir = createTempRepo("rn-mt-core-android-flavors-");
+
+    mkdirSync(join(repoDir, "android", "app"), { recursive: true });
+    writeFileSync(join(repoDir, "android", "app", "build.gradle"), "android {}\n");
+
+    const manifest = parseManifest(
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: repoDir },
+        config: {
+          identity: {
+            appName: "Keep Nexus",
+            nativeId: "com.keep.nexus",
+          },
+        },
+        defaults: { tenant: "demo-app", environment: "staging" },
+        tenants: {
+          "demo-app": { displayName: "Demo App" },
+          whiteLabel: { displayName: "White Label" },
+        },
+        environments: {
+          dev: { displayName: "Development" },
+          prod: { displayName: "Production" },
+          staging: { displayName: "Staging" },
+        },
+        platforms: {
+          android: {},
+        },
+      }),
+    );
+
+    const result = createSyncResult(repoDir, manifest, {
+      tenant: "demo-app",
+      environment: "staging",
+      platform: "android",
+    });
+    const flavorConfig = result.generatedFiles.find(
+      (file) => file.kind === "android-flavor-config",
+    );
+
+    expect(flavorConfig?.path).toBe(join(repoDir, "android", "app", "rn-mt.generated.flavors.gradle"));
+    expect(flavorConfig?.contents).toContain('flavorDimensions "tenant", "environment"');
+    expect(flavorConfig?.contents).toContain("demoApp {");
+    expect(flavorConfig?.contents).toContain('resValue "string", "RN_MT_TENANT_ID", "demo-app"');
+    expect(flavorConfig?.contents).toContain("whiteLabel {");
+    expect(flavorConfig?.contents).toContain("dev {");
+    expect(flavorConfig?.contents).toContain('applicationIdSuffix ".dev"');
+    expect(flavorConfig?.contents).toContain("prod {");
+    expect(flavorConfig?.contents).not.toContain('applicationIdSuffix ".prod"');
+    expect(flavorConfig?.contents).toContain("// Selected target: demo-app/staging/android");
+    expect(flavorConfig?.contents).toContain("// Selected variant: demoAppStaging");
+    expect(flavorConfig?.contents).toContain("// Selected applicationId: com.keep.nexus.staging");
+  });
+
+  it("emits iOS tenant-environment schemes and xcconfig includes for bare RN fixtures", () => {
+    const repoDir = createTempRepo("rn-mt-core-ios-schemes-");
+
+    mkdirSync(join(repoDir, "ios", "KeepNexus.xcodeproj"), { recursive: true });
+
+    const manifest = parseManifest(
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: repoDir },
+        config: {
+          identity: {
+            appName: "Keep Nexus",
+            nativeId: "com.keep.nexus",
+          },
+        },
+        defaults: { tenant: "demo-app", environment: "staging" },
+        tenants: {
+          "demo-app": { displayName: "Demo App" },
+        },
+        environments: {
+          staging: { displayName: "Staging" },
+        },
+        platforms: {
+          ios: {},
+        },
+      }),
+    );
+
+    const result = createSyncResult(repoDir, manifest, {
+      tenant: "demo-app",
+      environment: "staging",
+      platform: "ios",
+    });
+    const schemeFile = result.generatedFiles.find((file) => file.kind === "ios-scheme");
+    const currentXcconfig = result.generatedFiles.find(
+      (file) => file.path === join(repoDir, "ios", "rn-mt.generated.current.xcconfig"),
+    );
+    const targetXcconfig = result.generatedFiles.find(
+      (file) => file.path === join(repoDir, "ios", "rn-mt.generated.demo-app-staging.xcconfig"),
+    );
+
+    expect(schemeFile?.path).toBe(
+      join(
+        repoDir,
+        "ios",
+        "KeepNexus.xcodeproj",
+        "xcshareddata",
+        "xcschemes",
+        "DemoApp-Staging.xcscheme",
+      ),
+    );
+    expect(schemeFile?.contents).toContain("Selected target: demo-app/staging/ios");
+    expect(schemeFile?.contents).toContain("xcconfig include: rn-mt.generated.current.xcconfig");
+    expect(currentXcconfig?.contents).toContain(
+      '#include "rn-mt.generated.demo-app-staging.xcconfig"',
+    );
+    expect(targetXcconfig?.contents).toContain("PRODUCT_BUNDLE_IDENTIFIER = com.keep.nexus.staging");
+    expect(targetXcconfig?.contents).toContain(
+      'INFOPLIST_KEY_CFBundleDisplayName = "Keep Nexus (Staging)"',
+    );
+    expect(targetXcconfig?.contents).toContain('RN_MT_DISPLAY_NAME = "Keep Nexus (Staging)"');
+  });
+
+  it("materializes derived development identity across bare RN Android and iOS outputs", () => {
+    const repoDir = createTempRepo("rn-mt-core-native-identity-dev-");
+
+    mkdirSync(join(repoDir, "android", "app"), { recursive: true });
+    mkdirSync(join(repoDir, "ios", "KeepNexus.xcodeproj"), { recursive: true });
+    writeFileSync(join(repoDir, "android", "app", "build.gradle"), "android {}\n");
+
+    const manifest = parseManifest(
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: repoDir },
+        config: {
+          identity: {
+            appName: "Keep Nexus",
+            nativeId: "com.keep.nexus",
+          },
+        },
+        defaults: { tenant: "demo-app", environment: "dev" },
+        tenants: {
+          "demo-app": { displayName: "Demo App" },
+        },
+        environments: {
+          dev: { displayName: "Development" },
+        },
+        platforms: {
+          android: {},
+          ios: {},
+        },
+      }),
+    );
+
+    const androidResult = createSyncResult(repoDir, manifest, {
+      tenant: "demo-app",
+      environment: "dev",
+      platform: "android",
+    });
+    const iosResult = createSyncResult(repoDir, manifest, {
+      tenant: "demo-app",
+      environment: "dev",
+      platform: "ios",
+    });
+    const androidIdentity = androidResult.generatedFiles.find(
+      (file) => file.kind === "android-native-identity",
+    );
+    const iosXcconfig = iosResult.generatedFiles.find(
+      (file) => file.path === join(repoDir, "ios", "rn-mt.generated.demo-app-dev.xcconfig"),
+    );
+
+    expect(androidIdentity?.contents).toContain('applicationId "com.keep.nexus.dev"');
+    expect(androidIdentity?.contents).toContain(
+      'resValue "string", "app_name", "Keep Nexus (Dev)"',
+    );
+    expect(iosXcconfig?.contents).toContain("PRODUCT_BUNDLE_IDENTIFIER = com.keep.nexus.dev");
+    expect(iosXcconfig?.contents).toContain(
+      'INFOPLIST_KEY_CFBundleDisplayName = "Keep Nexus (Dev)"',
+    );
+  });
+
+  it("materializes derived staging identity across bare RN Android and iOS outputs", () => {
+    const repoDir = createTempRepo("rn-mt-core-native-identity-staging-");
+
+    mkdirSync(join(repoDir, "android", "app"), { recursive: true });
+    mkdirSync(join(repoDir, "ios", "KeepNexus.xcodeproj"), { recursive: true });
+    writeFileSync(join(repoDir, "android", "app", "build.gradle"), "android {}\n");
+
+    const manifest = parseManifest(
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: repoDir },
+        config: {
+          identity: {
+            appName: "Keep Nexus",
+            nativeId: "com.keep.nexus",
+          },
+        },
+        defaults: { tenant: "demo-app", environment: "staging" },
+        tenants: {
+          "demo-app": { displayName: "Demo App" },
+        },
+        environments: {
+          staging: { displayName: "Staging" },
+        },
+        platforms: {
+          android: {},
+          ios: {},
+        },
+      }),
+    );
+
+    const androidResult = createSyncResult(repoDir, manifest, {
+      tenant: "demo-app",
+      environment: "staging",
+      platform: "android",
+    });
+    const iosResult = createSyncResult(repoDir, manifest, {
+      tenant: "demo-app",
+      environment: "staging",
+      platform: "ios",
+    });
+    const androidIdentity = androidResult.generatedFiles.find(
+      (file) => file.kind === "android-native-identity",
+    );
+    const iosXcconfig = iosResult.generatedFiles.find(
+      (file) => file.path === join(repoDir, "ios", "rn-mt.generated.demo-app-staging.xcconfig"),
+    );
+
+    expect(androidIdentity?.contents).toContain('applicationId "com.keep.nexus.staging"');
+    expect(androidIdentity?.contents).toContain(
+      'resValue "string", "app_name", "Keep Nexus (Staging)"',
+    );
+    expect(iosXcconfig?.contents).toContain(
+      "PRODUCT_BUNDLE_IDENTIFIER = com.keep.nexus.staging",
+    );
+    expect(iosXcconfig?.contents).toContain(
+      'INFOPLIST_KEY_CFBundleDisplayName = "Keep Nexus (Staging)"',
+    );
+  });
+
+  it("materializes production identity across bare RN Android and iOS outputs without suffixes", () => {
+    const repoDir = createTempRepo("rn-mt-core-native-identity-prod-");
+
+    mkdirSync(join(repoDir, "android", "app"), { recursive: true });
+    mkdirSync(join(repoDir, "ios", "KeepNexus.xcodeproj"), { recursive: true });
+    writeFileSync(join(repoDir, "android", "app", "build.gradle"), "android {}\n");
+
+    const manifest = parseManifest(
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: repoDir },
+        config: {
+          identity: {
+            appName: "Keep Nexus",
+            nativeId: "com.keep.nexus",
+          },
+        },
+        defaults: { tenant: "demo-app", environment: "prod" },
+        tenants: {
+          "demo-app": { displayName: "Demo App" },
+        },
+        environments: {
+          prod: { displayName: "Production" },
+        },
+        platforms: {
+          android: {},
+          ios: {},
+        },
+      }),
+    );
+
+    const androidResult = createSyncResult(repoDir, manifest, {
+      tenant: "demo-app",
+      environment: "prod",
+      platform: "android",
+    });
+    const iosResult = createSyncResult(repoDir, manifest, {
+      tenant: "demo-app",
+      environment: "prod",
+      platform: "ios",
+    });
+    const androidIdentity = androidResult.generatedFiles.find(
+      (file) => file.kind === "android-native-identity",
+    );
+    const iosXcconfig = iosResult.generatedFiles.find(
+      (file) => file.path === join(repoDir, "ios", "rn-mt.generated.demo-app-prod.xcconfig"),
+    );
+
+    expect(androidIdentity?.contents).toContain('applicationId "com.keep.nexus"');
+    expect(androidIdentity?.contents).toContain('resValue "string", "app_name", "Keep Nexus"');
+    expect(iosXcconfig?.contents).toContain("PRODUCT_BUNDLE_IDENTIFIER = com.keep.nexus");
+    expect(iosXcconfig?.contents).toContain(
+      'INFOPLIST_KEY_CFBundleDisplayName = "Keep Nexus"',
+    );
+  });
+
+  it("respects explicit native platform identifier overrides over derived defaults", () => {
+    const repoDir = createTempRepo("rn-mt-core-native-identity-overrides-");
+
+    mkdirSync(join(repoDir, "android", "app"), { recursive: true });
+    mkdirSync(join(repoDir, "ios", "KeepNexus.xcodeproj"), { recursive: true });
+    writeFileSync(join(repoDir, "android", "app", "build.gradle"), "android {}\n");
+
+    const manifest = parseManifest(
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: repoDir },
+        config: {
+          identity: {
+            appName: "Keep Nexus",
+            nativeId: "com.keep.nexus",
+          },
+        },
+        defaults: { tenant: "demo-app", environment: "staging" },
+        tenants: {
+          "demo-app": {
+            displayName: "Demo App",
+            config: {
+              native: {
+                android: {
+                  applicationId: "com.demo.android.staging",
+                },
+                ios: {
+                  bundleIdentifier: "com.demo.ios.staging",
+                },
+              },
+            },
+          },
+        },
+        environments: {
+          staging: { displayName: "Staging" },
+        },
+        platforms: {
+          android: {},
+          ios: {},
+        },
+      }),
+    );
+
+    const androidResult = createSyncResult(repoDir, manifest, {
+      tenant: "demo-app",
+      environment: "staging",
+      platform: "android",
+    });
+    const iosResult = createSyncResult(repoDir, manifest, {
+      tenant: "demo-app",
+      environment: "staging",
+      platform: "ios",
+    });
+    const androidIdentity = androidResult.generatedFiles.find(
+      (file) => file.kind === "android-native-identity",
+    );
+    const iosXcconfig = iosResult.generatedFiles.find(
+      (file) => file.path === join(repoDir, "ios", "rn-mt.generated.demo-app-staging.xcconfig"),
+    );
+
+    expect(androidResult.runtime.config).toMatchObject({
+      native: {
+        android: {
+          applicationId: "com.demo.android.staging",
+        },
+        ios: {
+          bundleIdentifier: "com.demo.ios.staging",
+        },
+      },
+    });
+    expect(androidIdentity?.contents).toContain('applicationId "com.demo.android.staging"');
+    expect(androidIdentity?.contents).toContain(
+      'resValue "string", "app_name", "Keep Nexus (Staging)"',
+    );
+    expect(iosXcconfig?.contents).toContain(
+      "PRODUCT_BUNDLE_IDENTIFIER = com.demo.ios.staging",
+    );
+    expect(iosXcconfig?.contents).toContain(
+      'INFOPLIST_KEY_CFBundleDisplayName = "Keep Nexus (Staging)"',
     );
   });
 
@@ -1133,6 +3486,14 @@ describe("sync helpers", () => {
           phone: "+333333333",
         },
       },
+      native: {
+        android: {
+          applicationId: "com.rnmt.acme.staging",
+        },
+        ios: {
+          bundleIdentifier: "com.rnmt.acme.staging",
+        },
+      },
       enabledMarkets: ["tenant"],
       color: "green",
     });
@@ -1220,6 +3581,14 @@ describe("sync helpers", () => {
       identity: {
         displayName: "Acme (Staging)",
         nativeId: "com.rnmt.acme.staging",
+      },
+      native: {
+        android: {
+          applicationId: "com.rnmt.acme.staging",
+        },
+        ios: {
+          bundleIdentifier: "com.rnmt.acme.staging",
+        },
       },
     });
     expect(result.runtime.flags).toEqual({
@@ -1311,6 +3680,14 @@ describe("sync helpers", () => {
         displayName: "Base (Staging)",
         nativeId: "com.rnmt.acme.staging",
       },
+      native: {
+        android: {
+          applicationId: "com.rnmt.acme.staging",
+        },
+        ios: {
+          bundleIdentifier: "com.rnmt.acme.staging",
+        },
+      },
       color: "combo",
     });
     expect(result.runtime.flags).toEqual({
@@ -1353,6 +3730,14 @@ describe("sync helpers", () => {
         appName: "Keep Nexus",
         nativeId: "com.keep.nexus.staging",
         displayName: "Keep Nexus (Staging)",
+      },
+      native: {
+        android: {
+          applicationId: "com.keep.nexus.staging",
+        },
+        ios: {
+          bundleIdentifier: "com.keep.nexus.staging",
+        },
       },
     });
   });
@@ -1426,6 +3811,14 @@ describe("sync helpers", () => {
         appName: "Keep Nexus",
         displayName: "Custom Staging Name",
         nativeId: "com.custom.staging",
+      },
+      native: {
+        android: {
+          applicationId: "com.custom.staging",
+        },
+        ios: {
+          bundleIdentifier: "com.custom.staging",
+        },
       },
     });
   });
