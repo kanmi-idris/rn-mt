@@ -1,15 +1,31 @@
+/**
+ * Implements the doctor core module.
+ */
 import { join } from "node:path";
 
 import { RnMtAnalyzeModule } from "../analyze";
 import type { RnMtManifest } from "../manifest/types";
-import { getBareIosProjectName, hasBareAndroidProject, toPascalIdentifier } from "../sync";
+import {
+  getBareIosProjectName,
+  hasBareAndroidProject,
+  toPascalIdentifier,
+} from "../sync";
 import { RnMtWorkspace } from "../workspace";
 
 import type { RnMtDoctorResult } from "./types";
 
+/**
+ * Encapsulates doctor behavior behind a constructor-backed seam.
+ */
 export class RnMtDoctorModule {
+  /**
+   * Initializes the doctor with its shared dependencies.
+   */
   constructor(private readonly dependencies: { workspace: RnMtWorkspace }) {}
 
+  /**
+   * Runs the doctor flow.
+   */
   run(manifest: RnMtManifest): RnMtDoctorResult {
     const checks = [];
     const appKind = new RnMtAnalyzeModule({
@@ -41,10 +57,22 @@ export class RnMtDoctorModule {
 
     if (hasBareAndroidProject(this.dependencies.workspace)) {
       const expectedPaths = [
-        join(this.dependencies.workspace.rootDir, "android", "app", "rn-mt.generated.identity.gradle"),
-        join(this.dependencies.workspace.rootDir, "android", "app", "rn-mt.generated.flavors.gradle"),
+        join(
+          this.dependencies.workspace.rootDir,
+          "android",
+          "app",
+          "rn-mt.generated.identity.gradle",
+        ),
+        join(
+          this.dependencies.workspace.rootDir,
+          "android",
+          "app",
+          "rn-mt.generated.flavors.gradle",
+        ),
       ];
-      const missingPaths = expectedPaths.filter((path) => !this.dependencies.workspace.exists(path));
+      const missingPaths = expectedPaths.filter(
+        (path) => !this.dependencies.workspace.exists(path),
+      );
 
       checks.push(
         missingPaths.length === 0
@@ -74,8 +102,16 @@ export class RnMtDoctorModule {
         manifest.defaults.environment,
       )}`;
       const expectedPaths = [
-        join(this.dependencies.workspace.rootDir, "ios", "rn-mt.generated.current.xcconfig"),
-        join(this.dependencies.workspace.rootDir, "ios", `rn-mt.generated.${targetSlug}.xcconfig`),
+        join(
+          this.dependencies.workspace.rootDir,
+          "ios",
+          "rn-mt.generated.current.xcconfig",
+        ),
+        join(
+          this.dependencies.workspace.rootDir,
+          "ios",
+          `rn-mt.generated.${targetSlug}.xcconfig`,
+        ),
         join(
           this.dependencies.workspace.rootDir,
           "ios",
@@ -85,7 +121,9 @@ export class RnMtDoctorModule {
           `${schemeName}.xcscheme`,
         ),
       ];
-      const missingPaths = expectedPaths.filter((path) => !this.dependencies.workspace.exists(path));
+      const missingPaths = expectedPaths.filter(
+        (path) => !this.dependencies.workspace.exists(path),
+      );
 
       checks.push(
         missingPaths.length === 0

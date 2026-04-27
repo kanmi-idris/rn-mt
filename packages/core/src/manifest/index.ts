@@ -1,3 +1,6 @@
+/**
+ * Public entrypoint for the manifest module.
+ */
 export {
   createInitialManifest,
   parseManifest,

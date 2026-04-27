@@ -1,3 +1,6 @@
+/**
+ * Type definitions for the manifest module.
+ */
 import type { RnMtHostLanguage } from "../analyze/types";
 
 export type RnMtTargetPlatform = "ios" | "android";

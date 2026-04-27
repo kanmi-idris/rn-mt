@@ -1,3 +1,6 @@
+/**
+ * Type definitions for the audit module.
+ */
 export type RnMtAuditSeverity = "P0" | "P1" | "P2" | "P3";
 
 export type RnMtAuditConfidence = "low" | "medium" | "high";

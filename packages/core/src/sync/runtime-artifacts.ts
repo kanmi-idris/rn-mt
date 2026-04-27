@@ -1,13 +1,16 @@
+/**
+ * Builds generated runtime artifacts during sync.
+ */
 import { join, relative } from "node:path";
 
 import type { RnMtResolvedRuntimeArtifact } from "../manifest/types";
 import { RnMtWorkspace } from "../workspace";
 
-import type {
-  RnMtOwnershipMetadataFile,
-  RnMtSyncGeneratedFile,
-} from "./types";
+import type { RnMtOwnershipMetadataFile, RnMtSyncGeneratedFile } from "./types";
 
+/**
+ * Creates runtime artifact file.
+ */
 export function createRuntimeArtifactFile(
   workspace: RnMtWorkspace,
   runtime: RnMtResolvedRuntimeArtifact,
@@ -19,6 +22,9 @@ export function createRuntimeArtifactFile(
   };
 }
 
+/**
+ * Creates ownership metadata file.
+ */
 export function createOwnershipMetadataFile(
   workspace: RnMtWorkspace,
   trackedFiles: RnMtSyncGeneratedFile[],
@@ -40,7 +46,10 @@ export function createOwnershipMetadataFile(
   };
 
   return {
-    path: join(workspace.rootDir, options.fileName ?? "rn-mt.generated.ownership.json"),
+    path: join(
+      workspace.rootDir,
+      options.fileName ?? "rn-mt.generated.ownership.json",
+    ),
     kind: "ownership-metadata",
     contents: `${JSON.stringify(metadata, null, 2)}\n`,
   };

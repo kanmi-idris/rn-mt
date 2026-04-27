@@ -2,8 +2,12 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "composite": true,
-    "rootDir": "src",
-    "outDir": "dist"
+    "rootDir": "..",
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@rn-mt/shared": ["../shared/src/index.ts"]
+    }
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "../shared/src/**/*.ts"]
 }

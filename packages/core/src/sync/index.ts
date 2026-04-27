@@ -1,3 +1,6 @@
+/**
+ * Public entrypoint for the sync module.
+ */
 export { RnMtSyncModule } from "./sync-module";
 
 export { createOwnershipMetadataFile } from "./runtime-artifacts";

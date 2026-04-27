@@ -1,7 +1,13 @@
+/**
+ * Builds derived asset artifacts and fingerprint metadata during sync.
+ */
 import { createHash } from "node:crypto";
 import { dirname, join, relative } from "node:path";
 
-import type { RnMtResolvedRuntimeArtifact, RnMtResolvedTarget } from "../manifest/types";
+import type {
+  RnMtResolvedRuntimeArtifact,
+  RnMtResolvedTarget,
+} from "../manifest/types";
 import { RnMtWorkspace } from "../workspace";
 
 import type {
@@ -10,8 +16,15 @@ import type {
   RnMtSyncGeneratedFile,
 } from "./types";
 
+/**
+ * Reads the previous derived-asset fingerprint metadata so sync can reuse
+ * unchanged outputs.
+ */
 function getDerivedAssetFingerprintMetadata(workspace: RnMtWorkspace) {
-  const metadataPath = join(workspace.rootDir, "rn-mt.generated.asset-fingerprints.json");
+  const metadataPath = join(
+    workspace.rootDir,
+    "rn-mt.generated.asset-fingerprints.json",
+  );
 
   if (!workspace.exists(metadataPath)) {
     return null;
@@ -20,10 +33,18 @@ function getDerivedAssetFingerprintMetadata(workspace: RnMtWorkspace) {
   return workspace.readJson<RnMtDerivedAssetFingerprintMetadata>(metadataPath);
 }
 
+/**
+ * Hashes a source asset so derived outputs can participate in incremental sync
+ * decisions.
+ */
 function getSourceFingerprint(contents: string) {
   return createHash("sha256").update(contents).digest("hex");
 }
 
+/**
+ * Builds the derived SVG icon contents, adding a non-production badge when the
+ * selected environment requires one.
+ */
 function createDerivedIconContents(
   environment: string,
   sourceAssetPath: string,
@@ -48,6 +69,10 @@ function createDerivedIconContents(
   ].join("\n");
 }
 
+/**
+ * Serializes the fingerprint metadata file that tracks derived assets written
+ * during sync.
+ */
 export function createAssetFingerprintMetadataFile(
   workspace: RnMtWorkspace,
   records: RnMtDerivedAssetFingerprintRecord[],
@@ -71,12 +96,18 @@ export function createAssetFingerprintMetadataFile(
   };
 }
 
+/**
+ * Creates the derived platform asset files and fingerprint records required for
+ * the selected target.
+ */
 export function createDerivedPlatformAssetFiles(
   workspace: RnMtWorkspace,
   runtime: RnMtResolvedRuntimeArtifact,
   target: RnMtResolvedTarget,
 ) {
-  const sourceAssetPath = runtime.assets.icon ? join(workspace.rootDir, runtime.assets.icon) : null;
+  const sourceAssetPath = runtime.assets.icon
+    ? join(workspace.rootDir, runtime.assets.icon)
+    : null;
 
   if (!target.platform || target.platform !== "ios" || !sourceAssetPath) {
     return {
@@ -94,23 +125,28 @@ export function createDerivedPlatformAssetFiles(
 
   const sourceContents = workspace.readText(sourceAssetPath);
   const sourceFingerprint = getSourceFingerprint(sourceContents);
-  const outputPath = join(workspace.rootDir, "ios", `rn-mt.generated.icon.${target.environment}.svg`);
+  const outputPath = join(
+    workspace.rootDir,
+    "ios",
+    `rn-mt.generated.icon.${target.environment}.svg`,
+  );
   const previousMetadata = getDerivedAssetFingerprintMetadata(workspace);
   const previousRecord = previousMetadata?.derivedAssets.find(
     (record) =>
-      join(workspace.rootDir, record.outputPath) === outputPath
-      && record.sourceFingerprint === sourceFingerprint
-      && record.environment === target.environment
-      && record.platform === target.platform
-      && join(workspace.rootDir, record.sourcePath) === sourceAssetPath,
+      join(workspace.rootDir, record.outputPath) === outputPath &&
+      record.sourceFingerprint === sourceFingerprint &&
+      record.environment === target.environment &&
+      record.platform === target.platform &&
+      join(workspace.rootDir, record.sourcePath) === sourceAssetPath,
   );
-  const contents = previousRecord && workspace.exists(outputPath)
-    ? workspace.readText(outputPath)
-    : createDerivedIconContents(
-        target.environment,
-        relative(dirname(outputPath), sourceAssetPath).replace(/\\/gu, "/"),
-        sourceFingerprint,
-      );
+  const contents =
+    previousRecord && workspace.exists(outputPath)
+      ? workspace.readText(outputPath)
+      : createDerivedIconContents(
+          target.environment,
+          relative(dirname(outputPath), sourceAssetPath).replace(/\\/gu, "/"),
+          sourceFingerprint,
+        );
   const fingerprintRecord: RnMtDerivedAssetFingerprintRecord = {
     outputPath,
     platform: target.platform,

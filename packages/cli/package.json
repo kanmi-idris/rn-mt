@@ -12,7 +12,8 @@
     "dist"
   ],
   "dependencies": {
-    "@rn-mt/core": "workspace:*"
+    "@rn-mt/core": "workspace:*",
+    "@rn-mt/shared": "workspace:*"
   },
   "scripts": {
     "build": "tsup",

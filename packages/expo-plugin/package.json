@@ -13,7 +13,8 @@
     "expo": ">=52"
   },
   "dependencies": {
-    "@rn-mt/core": "workspace:*"
+    "@rn-mt/core": "workspace:*",
+    "@rn-mt/shared": "workspace:*"
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts",

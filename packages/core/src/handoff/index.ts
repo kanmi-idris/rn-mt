@@ -1,3 +1,6 @@
+/**
+ * Public entrypoint for the handoff module.
+ */
 export { RnMtHandoffModule } from "./handoff-module";
 
 export type {

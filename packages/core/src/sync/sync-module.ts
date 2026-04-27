@@ -1,7 +1,19 @@
+/**
+ * Resolves target runtime state and generates the CLI-owned artifacts written
+ * by rn-mt sync.
+ */
 import type { RnMtManifest, RnMtResolvedTarget } from "../manifest/types";
-import { resolveManifestLayers, resolveTargetRuntime, validateEnvInputs, validateTargetSelection } from "../manifest";
+import {
+  resolveManifestLayers,
+  resolveTargetRuntime,
+  validateEnvInputs,
+  validateTargetSelection,
+} from "../manifest";
 
-import { createDerivedPlatformAssetFiles, createAssetFingerprintMetadataFile } from "./asset-artifacts";
+import {
+  createDerivedPlatformAssetFiles,
+  createAssetFingerprintMetadataFile,
+} from "./asset-artifacts";
 import {
   createAndroidFlavorConfigFile,
   createAndroidNativeIdentityFile,
@@ -11,7 +23,10 @@ import {
   hasBareAndroidProject,
   hasExpoComputedConfig,
 } from "./native-artifacts";
-import { createOwnershipMetadataFile, createRuntimeArtifactFile } from "./runtime-artifacts";
+import {
+  createOwnershipMetadataFile,
+  createRuntimeArtifactFile,
+} from "./runtime-artifacts";
 import { createSubprocessEnv } from "./subprocess-env";
 
 import type { RnMtEnvSource } from "../manifest/types";
@@ -22,9 +37,18 @@ import type {
   RnMtSubprocessEnvResult,
 } from "./types";
 
+/**
+ * Encapsulates sync behavior behind a constructor-backed seam.
+ */
 export class RnMtSyncModule {
+  /**
+   * Initializes the sync with its shared dependencies.
+   */
   constructor(private readonly dependencies: RnMtSyncModuleDependencies) {}
 
+  /**
+   * Runs the sync flow.
+   */
   run(options: RnMtSyncRunOptions): RnMtSyncResult {
     const manifest = options.manifest;
     const target: RnMtResolvedTarget = options.target
@@ -51,7 +75,10 @@ export class RnMtSyncModule {
 
     const resolution = resolveManifestLayers(manifest, target);
     const runtime = resolveTargetRuntime(manifest, target);
-    const runtimeArtifact = createRuntimeArtifactFile(this.dependencies.workspace, runtime);
+    const runtimeArtifact = createRuntimeArtifactFile(
+      this.dependencies.workspace,
+      runtime,
+    );
     const derivedAssets = createDerivedPlatformAssetFiles(
       this.dependencies.workspace,
       runtime,
@@ -77,9 +104,16 @@ export class RnMtSyncModule {
       );
     }
 
-    if (target.platform === "android" && hasBareAndroidProject(this.dependencies.workspace)) {
+    if (
+      target.platform === "android" &&
+      hasBareAndroidProject(this.dependencies.workspace)
+    ) {
       trackedFiles.push(
-        createAndroidNativeIdentityFile(this.dependencies.workspace, runtime, target),
+        createAndroidNativeIdentityFile(
+          this.dependencies.workspace,
+          runtime,
+          target,
+        ),
         createAndroidFlavorConfigFile(
           this.dependencies.workspace,
           manifest,
@@ -90,7 +124,9 @@ export class RnMtSyncModule {
     }
 
     if (target.platform === "ios") {
-      const xcodeProjectName = getBareIosProjectName(this.dependencies.workspace);
+      const xcodeProjectName = getBareIosProjectName(
+        this.dependencies.workspace,
+      );
 
       if (xcodeProjectName) {
         trackedFiles.push(
@@ -140,6 +176,9 @@ export class RnMtSyncModule {
     };
   }
 
+  /**
+   * Loads and validates the env map used for target-aware subprocess execution.
+   */
   createSubprocessEnv(options: {
     manifest: RnMtManifest;
     target?: RnMtResolvedTarget;

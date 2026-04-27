@@ -1,3 +1,6 @@
+/**
+ * Public entrypoint for the @rn-mt/core package.
+ */
 export { RnMtWorkspace } from "./workspace";
 export { RnMtAnalyzeModule } from "./analyze";
 export * as manifest from "./manifest";

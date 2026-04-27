@@ -6,8 +6,9 @@
     "outDir": "dist",
     "baseUrl": ".",
     "paths": {
-      "@rn-mt/core": ["../core/src/index.ts"]
+      "@rn-mt/core": ["../core/src/index.ts"],
+      "@rn-mt/shared": ["../shared/src/index.ts"]
     }
   },
-  "include": ["src/**/*.ts", "../core/src/**/*.ts"]
+  "include": ["src/**/*.ts", "../core/src/**/*.ts", "../shared/src/**/*.ts"]
 }

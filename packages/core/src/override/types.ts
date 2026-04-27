@@ -1,3 +1,6 @@
+/**
+ * Type definitions for the override module.
+ */
 import type { RnMtSyncGeneratedFile } from "../sync/types";
 
 export interface RnMtOverrideCreatedFile {

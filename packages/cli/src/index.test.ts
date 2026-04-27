@@ -125,7 +125,10 @@ const ambiguousAnalyzeReport: RnMtBaselineAnalyzeReport = {
     app: {
       kind: "unknown" as const,
       candidates: ["expo-managed", "expo-prebuild"] as const,
-      evidence: ["package.json includes expo dependency", "app.config.ts present"],
+      evidence: [
+        "package.json includes expo dependency",
+        "app.config.ts present",
+      ],
       remediation: [
         "Run analyze interactively and choose the intended Expo repo shape.",
         "Add or remove ios/android folders so the repo shape is unambiguous.",
@@ -254,9 +257,12 @@ describe("cli analyze command", () => {
       parsed.repo.support.tier,
     );
     expect(Array.isArray(parsed.repo.support.reasonCodes)).toBe(true);
-    expect(["unknown", "expo-managed", "expo-prebuild", "bare-react-native"]).toContain(
-      parsed.repo.app.kind,
-    );
+    expect([
+      "unknown",
+      "expo-managed",
+      "expo-prebuild",
+      "bare-react-native",
+    ]).toContain(parsed.repo.app.kind);
     expect(["javascript", "typescript"]).toContain(parsed.repo.host.language);
     expect(Array.isArray(parsed.repo.host.evidence)).toBe(true);
     expect(Array.isArray(parsed.repo.app.evidence)).toBe(true);
@@ -280,9 +286,7 @@ describe("cli analyze command", () => {
       "expo-managed",
       "expo-prebuild",
       "bare-react-native",
-    ]).toContain(
-      parsed.repo.app.kind,
-    );
+    ]).toContain(parsed.repo.app.kind);
     expect(["supported", "near-supported", "unsupported"]).toContain(
       parsed.repo.support.tier,
     );
@@ -310,7 +314,9 @@ describe("cli analyze command", () => {
     );
     expect(errorOutput).toContain("Analyze status: ambiguous");
     expect(errorOutput).toContain("Support tier: near-supported");
-    expect(errorOutput).toContain("App candidates: expo-managed, expo-prebuild");
+    expect(errorOutput).toContain(
+      "App candidates: expo-managed, expo-prebuild",
+    );
   });
 
   it("returns structured remediation JSON in non-interactive mode when ambiguity remains", () => {
@@ -331,7 +337,8 @@ describe("cli analyze command", () => {
       command: "analyze",
       status: "blocked",
       analyze: ambiguousAnalyzeReport,
-      reason: "Ambiguous repo classification requires an explicit app-kind selection.",
+      reason:
+        "Ambiguous repo classification requires an explicit app-kind selection.",
       remediation: ambiguousAnalyzeReport.repo.app.remediation,
     });
     expect(stderr).not.toHaveBeenCalled();
@@ -341,12 +348,16 @@ describe("cli analyze command", () => {
     const stdout = vi.fn();
     const stderr = vi.fn();
     const promptForAppKind = vi.fn<
-      (typeof runCli extends (
+      typeof runCli extends (
         args: string[],
         options?: infer TOptions,
       ) => unknown
-        ? NonNullable<TOptions extends { promptForAppKind?: infer TPrompt } ? TPrompt : never>
-        : never)
+        ? NonNullable<
+            TOptions extends { promptForAppKind?: infer TPrompt }
+              ? TPrompt
+              : never
+          >
+        : never
     >(() => "expo-prebuild");
 
     const exitCode = runCli(["analyze", "--json"], {
@@ -372,11 +383,14 @@ describe("cli analyze command", () => {
     const stdout = vi.fn();
     const stderr = vi.fn();
 
-    const exitCode = runCli(["analyze", "--json", "--app-kind", "expo-managed"], {
-      cwd: process.cwd(),
-      io: { stdout, stderr },
-      analyzeReportFactory: () => ambiguousAnalyzeReport,
-    });
+    const exitCode = runCli(
+      ["analyze", "--json", "--app-kind", "expo-managed"],
+      {
+        cwd: process.cwd(),
+        io: { stdout, stderr },
+        analyzeReportFactory: () => ambiguousAnalyzeReport,
+      },
+    );
 
     const output = stdout.mock.calls.map(([chunk]) => chunk).join("");
     const parsed = JSON.parse(output);
@@ -411,7 +425,9 @@ describe("cli analyze command", () => {
 
     expect(exitCode).toBe(0);
     expect(parsed.status).toBe("created");
-    expect(parsed.manifestPath).toBe("/tmp/supported-fixture/rn-mt.config.json");
+    expect(parsed.manifestPath).toBe(
+      "/tmp/supported-fixture/rn-mt.config.json",
+    );
     expect(parsed.manifest.schemaVersion).toBe(1);
     expect(parsed.manifest.defaults).toEqual({
       tenant: "default",
@@ -475,7 +491,9 @@ describe("cli analyze command", () => {
     expect(writeFile).toHaveBeenNthCalledWith(
       2,
       "/tmp/typescript-fixture/rn-mt.generated.ts",
-      expect.stringContaining("export const rnMtHostLanguage = 'typescript' as const"),
+      expect.stringContaining(
+        "export const rnMtHostLanguage = 'typescript' as const",
+      ),
     );
     expect(stderr).not.toHaveBeenCalled();
   });
@@ -506,13 +524,21 @@ describe("cli analyze command", () => {
         },
       }),
     );
-    writeFileSync(join(appRoot, "app.json"), JSON.stringify({ expo: { name: "Mobile App" } }));
+    writeFileSync(
+      join(appRoot, "app.json"),
+      JSON.stringify({ expo: { name: "Mobile App" } }),
+    );
 
-    const exitCode = runCli(["analyze", "--json", "--app-root", "apps/mobile"], {
-      cwd: repoDir,
-      io: { stdout, stderr },
-    });
-    const parsed = JSON.parse(stdout.mock.calls.map(([chunk]) => chunk).join(""));
+    const exitCode = runCli(
+      ["analyze", "--json", "--app-root", "apps/mobile"],
+      {
+        cwd: repoDir,
+        io: { stdout, stderr },
+      },
+    );
+    const parsed = JSON.parse(
+      stdout.mock.calls.map(([chunk]) => chunk).join(""),
+    );
 
     expect(exitCode).toBe(0);
     expect(parsed.repo.rootDir).toBe(appRoot);
@@ -546,13 +572,18 @@ describe("cli analyze command", () => {
         },
       }),
     );
-    writeFileSync(join(appRoot, "app.json"), JSON.stringify({ expo: { name: "Mobile App" } }));
+    writeFileSync(
+      join(appRoot, "app.json"),
+      JSON.stringify({ expo: { name: "Mobile App" } }),
+    );
 
     const exitCode = runCli(["init", "--json", "--app-root", "apps/mobile"], {
       cwd: repoDir,
       io: { stdout, stderr },
     });
-    const parsed = JSON.parse(stdout.mock.calls.map(([chunk]) => chunk).join(""));
+    const parsed = JSON.parse(
+      stdout.mock.calls.map(([chunk]) => chunk).join(""),
+    );
 
     expect(exitCode).toBe(0);
     expect(parsed.manifestPath).toBe(join(appRoot, "rn-mt.config.json"));
@@ -593,7 +624,14 @@ describe("cli analyze command", () => {
     );
 
     const exitCode = runCli(
-      ["sync", "--json", "--app-root", "apps/admin", "--config", "apps/mobile/rn-mt.config.json"],
+      [
+        "sync",
+        "--json",
+        "--app-root",
+        "apps/admin",
+        "--config",
+        "apps/mobile/rn-mt.config.json",
+      ],
       {
         cwd: repoDir,
         io: { stdout, stderr },
@@ -635,7 +673,9 @@ describe("cli analyze command", () => {
         io: { stdout, stderr },
       },
     );
-    const parsed = JSON.parse(stdout.mock.calls.map(([chunk]) => chunk).join(""));
+    const parsed = JSON.parse(
+      stdout.mock.calls.map(([chunk]) => chunk).join(""),
+    );
 
     expect(exitCode).toBe(0);
     expect(parsed.command).toBe("sync");
@@ -643,8 +683,12 @@ describe("cli analyze command", () => {
       tenant: "mobile-app",
       environment: "dev",
     });
-    expect(existsSync(join(appRoot, "rn-mt.generated.runtime.json"))).toBe(true);
-    expect(existsSync(join(repoDir, "rn-mt.generated.runtime.json"))).toBe(false);
+    expect(existsSync(join(appRoot, "rn-mt.generated.runtime.json"))).toBe(
+      true,
+    );
+    expect(existsSync(join(repoDir, "rn-mt.generated.runtime.json"))).toBe(
+      false,
+    );
     expect(stderr).not.toHaveBeenCalled();
   });
 
@@ -769,7 +813,10 @@ describe("cli analyze command", () => {
       }),
     );
     writeFileSync(join(repoDir, "README.md"), "# Fixture App\n");
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -785,7 +832,10 @@ describe("cli analyze command", () => {
       }),
     );
     mkdirSync(join(repoDir, ".github", "workflows"), { recursive: true });
-    writeFileSync(join(repoDir, ".github", "workflows", "release.yml"), "name: release\n");
+    writeFileSync(
+      join(repoDir, ".github", "workflows", "release.yml"),
+      "name: release\n",
+    );
     writeFileSync(
       join(repoDir, ".env.dev"),
       "API_BASE_URL=https://dev.example.com\nSENTRY_DSN=https://secret-dev\n",
@@ -887,45 +937,63 @@ describe("cli analyze command", () => {
     expect(readFileSync(join(repoDir, "index.js"), "utf8")).toContain(
       'import "./src/rn-mt/current/index";',
     );
-    expect(readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.tsx"), "utf8")).toContain(
-      'import theme from "../current/theme/index";',
-    );
-    expect(readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.tsx"), "utf8")).toContain(
-      'import config from "../current/src/config/index";',
-    );
+    expect(
+      readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.tsx"), "utf8"),
+    ).toContain('import theme from "../current/theme/index";');
+    expect(
+      readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.tsx"), "utf8"),
+    ).toContain('import config from "../current/src/config/index";');
     expect(
       readFileSync(join(repoDir, "src", "rn-mt", "current", "App.tsx"), "utf8"),
     ).toContain('export { default } from "../shared/App";');
     expect(
-      readFileSync(join(repoDir, "src", "rn-mt", "current", "theme", "index.ts"), "utf8"),
+      readFileSync(
+        join(repoDir, "src", "rn-mt", "current", "theme", "index.ts"),
+        "utf8",
+      ),
     ).toContain("../../shared/theme/index");
     expect(
-      readFileSync(join(repoDir, "src", "rn-mt", "current", "runtime.ts"), "utf8"),
+      readFileSync(
+        join(repoDir, "src", "rn-mt", "current", "runtime.ts"),
+        "utf8",
+      ),
     ).toContain("createRuntimeAccessors");
     expect(
-      readFileSync(join(repoDir, "src", "rn-mt", "shared", "theme", "index.ts"), "utf8"),
+      readFileSync(
+        join(repoDir, "src", "rn-mt", "shared", "theme", "index.ts"),
+        "utf8",
+      ),
     ).toContain("../../current/assets/logo.png");
     expect(
-      readFileSync(join(repoDir, "src", "rn-mt", "shared", "src", "config", "index.ts"), "utf8"),
+      readFileSync(
+        join(repoDir, "src", "rn-mt", "shared", "src", "config", "index.ts"),
+        "utf8",
+      ),
     ).toContain("apiBaseUrl");
     expect(
-      readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.test.tsx"), "utf8"),
+      readFileSync(
+        join(repoDir, "src", "rn-mt", "shared", "App.test.tsx"),
+        "utf8",
+      ),
     ).toContain('import App from "../current/App";');
     expect(
-      readFileSync(join(repoDir, "rn-mt.generated.convert.ownership.json"), "utf8"),
+      readFileSync(
+        join(repoDir, "rn-mt.generated.convert.ownership.json"),
+        "utf8",
+      ),
     ).toContain('"owner": "cli"');
-    expect(readFileSync(join(repoDir, "rn-mt.generated.README.md"), "utf8")).toContain(
-      "# rn-mt Ownership and Handoff Guide",
-    );
-    expect(readFileSync(join(repoDir, "rn-mt.generated.README.md"), "utf8")).toContain(
-      "## CLI-owned files",
-    );
-    expect(readFileSync(join(repoDir, "rn-mt.generated.README.md"), "utf8")).toContain(
-      "## User-owned files",
-    );
-    expect(readFileSync(join(repoDir, "rn-mt.generated.README.md"), "utf8")).toContain(
-      "## Handoff expectations",
-    );
+    expect(
+      readFileSync(join(repoDir, "rn-mt.generated.README.md"), "utf8"),
+    ).toContain("# rn-mt Ownership and Handoff Guide");
+    expect(
+      readFileSync(join(repoDir, "rn-mt.generated.README.md"), "utf8"),
+    ).toContain("## CLI-owned files");
+    expect(
+      readFileSync(join(repoDir, "rn-mt.generated.README.md"), "utf8"),
+    ).toContain("## User-owned files");
+    expect(
+      readFileSync(join(repoDir, "rn-mt.generated.README.md"), "utf8"),
+    ).toContain("## Handoff expectations");
     expect(readFileSync(join(repoDir, "README.md"), "utf8")).toContain(
       "[rn-mt ownership and handoff guide](./rn-mt.generated.README.md)",
     );
@@ -966,7 +1034,10 @@ describe("cli analyze command", () => {
       '"@rn-mt/cli": "0.1.0"',
     );
     expect(
-      readFileSync(join(repoDir, "src", "rn-mt", "extensions", "index.ts"), "utf8"),
+      readFileSync(
+        join(repoDir, "src", "rn-mt", "extensions", "index.ts"),
+        "utf8",
+      ),
     ).toContain("User-owned rn-mt extension module");
     expect(parsed.movedFiles).toEqual(
       expect.arrayContaining([
@@ -992,7 +1063,10 @@ describe("cli analyze command", () => {
     );
     expect(
       JSON.parse(
-        readFileSync(join(repoDir, "rn-mt.generated.reconstruction.json"), "utf8"),
+        readFileSync(
+          join(repoDir, "rn-mt.generated.reconstruction.json"),
+          "utf8",
+        ),
       ),
     ).toEqual(
       expect.objectContaining({
@@ -1029,7 +1103,10 @@ describe("cli analyze command", () => {
         },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -1044,7 +1121,10 @@ describe("cli analyze command", () => {
         },
       }),
     );
-    writeFileSync(join(repoDir, "App.tsx"), "export default function App() { return null; }\n");
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      "export default function App() { return null; }\n",
+    );
     writeFileSync(
       join(repoDir, "index.js"),
       "import { registerRootComponent } from 'expo';\nregisterRootComponent(App);\n",
@@ -1070,10 +1150,15 @@ describe("cli analyze command", () => {
       cwd: repoDir,
       io: { stdout, stderr },
       runSubprocess(command) {
-        return { status: 1, error: new Error(`Unexpected subprocess: ${command}`) };
+        return {
+          status: 1,
+          error: new Error(`Unexpected subprocess: ${command}`),
+        };
       },
     });
-    const parsed = JSON.parse(stdout.mock.calls.map(([chunk]) => chunk).join(""));
+    const parsed = JSON.parse(
+      stdout.mock.calls.map(([chunk]) => chunk).join(""),
+    );
 
     expect(exitCode).toBe(0);
     expect(parsed.command).toBe("upgrade");
@@ -1120,7 +1205,10 @@ describe("cli analyze command", () => {
         },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -1135,7 +1223,10 @@ describe("cli analyze command", () => {
         },
       }),
     );
-    writeFileSync(join(repoDir, "App.tsx"), "export default function App() { return null; }\n");
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      "export default function App() { return null; }\n",
+    );
     writeFileSync(
       join(repoDir, "index.js"),
       "import { registerRootComponent } from 'expo';\nregisterRootComponent(App);\n",
@@ -1157,11 +1248,18 @@ describe("cli analyze command", () => {
           return { status: 0 };
         }
 
-        return { status: 1, error: new Error(`Unexpected subprocess: ${command}`) };
+        return {
+          status: 1,
+          error: new Error(`Unexpected subprocess: ${command}`),
+        };
       },
     });
-    const parsed = JSON.parse(stdout.mock.calls.map(([chunk]) => chunk).join(""));
-    const upgradedPackageJson = JSON.parse(readFileSync(join(repoDir, "package.json"), "utf8")) as {
+    const parsed = JSON.parse(
+      stdout.mock.calls.map(([chunk]) => chunk).join(""),
+    );
+    const upgradedPackageJson = JSON.parse(
+      readFileSync(join(repoDir, "package.json"), "utf8"),
+    ) as {
       dependencies?: Record<string, string>;
       devDependencies?: Record<string, string>;
     };
@@ -1202,7 +1300,9 @@ describe("cli analyze command", () => {
       }),
     ]);
     expect(upgradedPackageJson.dependencies?.["@rn-mt/runtime"]).toBe("0.1.0");
-    expect(upgradedPackageJson.dependencies?.["@rn-mt/expo-plugin"]).toBe("0.1.0");
+    expect(upgradedPackageJson.dependencies?.["@rn-mt/expo-plugin"]).toBe(
+      "0.1.0",
+    );
     expect(upgradedPackageJson.devDependencies?.["@rn-mt/cli"]).toBe("0.1.0");
     expect(migratedHookState.schemaVersion).toBe(1);
     expect(migratedHookState.tool).toBe("rn-mt");
@@ -1222,7 +1322,10 @@ describe("cli analyze command", () => {
         dependencies: { expo: "~52.0.0" },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -1256,7 +1359,10 @@ describe("cli analyze command", () => {
     mkdirSync(join(repoDir, "theme"), { recursive: true });
     mkdirSync(join(repoDir, "src", "config"), { recursive: true });
     writeFileSync(join(repoDir, "theme", "index.ts"), "export default {};\n");
-    writeFileSync(join(repoDir, "src", "config", "index.ts"), "export default {};\n");
+    writeFileSync(
+      join(repoDir, "src", "config", "index.ts"),
+      "export default {};\n",
+    );
 
     expect(
       runCli(["convert", "--json"], {
@@ -1274,13 +1380,18 @@ describe("cli analyze command", () => {
       "}",
       "",
     ].join("\n");
-    writeFileSync(join(repoDir, "src", "rn-mt", "shared", "App.tsx"), regressedContents);
+    writeFileSync(
+      join(repoDir, "src", "rn-mt", "shared", "App.tsx"),
+      regressedContents,
+    );
 
     const exitCode = runCli(["codemod", "current-imports", "--json"], {
       cwd: repoDir,
       io: { stdout, stderr },
     });
-    const parsed = JSON.parse(stdout.mock.calls.map(([chunk]) => chunk).join(""));
+    const parsed = JSON.parse(
+      stdout.mock.calls.map(([chunk]) => chunk).join(""),
+    );
 
     expect(exitCode).toBe(0);
     expect(parsed.command).toBe("codemod");
@@ -1291,12 +1402,14 @@ describe("cli analyze command", () => {
       expect.objectContaining({
         path: join(repoDir, "src", "rn-mt", "shared", "App.tsx"),
         before: regressedContents,
-        after: expect.stringContaining('import theme from "../current/theme/index";'),
+        after: expect.stringContaining(
+          'import theme from "../current/theme/index";',
+        ),
       }),
     ]);
-    expect(readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.tsx"), "utf8")).toBe(
-      regressedContents,
-    );
+    expect(
+      readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.tsx"), "utf8"),
+    ).toBe(regressedContents);
     expect(stderr).not.toHaveBeenCalled();
   });
 
@@ -1312,7 +1425,10 @@ describe("cli analyze command", () => {
         dependencies: { expo: "~52.0.0" },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -1346,7 +1462,10 @@ describe("cli analyze command", () => {
     mkdirSync(join(repoDir, "theme"), { recursive: true });
     mkdirSync(join(repoDir, "src", "config"), { recursive: true });
     writeFileSync(join(repoDir, "theme", "index.ts"), "export default {};\n");
-    writeFileSync(join(repoDir, "src", "config", "index.ts"), "export default {};\n");
+    writeFileSync(
+      join(repoDir, "src", "config", "index.ts"),
+      "export default {};\n",
+    );
 
     expect(
       runCli(["convert", "--json"], {
@@ -1368,22 +1487,27 @@ describe("cli analyze command", () => {
       ].join("\n"),
     );
 
-    const exitCode = runCli(["codemod", "current-imports", "--write", "--json"], {
-      cwd: repoDir,
-      io: { stdout, stderr },
-    });
-    const parsed = JSON.parse(stdout.mock.calls.map(([chunk]) => chunk).join(""));
+    const exitCode = runCli(
+      ["codemod", "current-imports", "--write", "--json"],
+      {
+        cwd: repoDir,
+        io: { stdout, stderr },
+      },
+    );
+    const parsed = JSON.parse(
+      stdout.mock.calls.map(([chunk]) => chunk).join(""),
+    );
 
     expect(exitCode).toBe(0);
     expect(parsed.command).toBe("codemod");
     expect(parsed.status).toBe("written");
     expect(parsed.write).toBe(true);
-    expect(readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.tsx"), "utf8")).toContain(
-      'import theme from "../current/theme/index";',
-    );
-    expect(readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.tsx"), "utf8")).toContain(
-      'import config from "../current/src/config/index";',
-    );
+    expect(
+      readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.tsx"), "utf8"),
+    ).toContain('import theme from "../current/theme/index";');
+    expect(
+      readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.tsx"), "utf8"),
+    ).toContain('import config from "../current/src/config/index";');
     expect(stderr).not.toHaveBeenCalled();
   });
 
@@ -1402,7 +1526,10 @@ describe("cli analyze command", () => {
         dependencies: { expo: "~52.0.0" },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -1417,7 +1544,10 @@ describe("cli analyze command", () => {
         },
       }),
     );
-    writeFileSync(join(repoDir, "App.tsx"), "export default function App() { return null; }\n");
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      "export default function App() { return null; }\n",
+    );
     writeFileSync(
       join(repoDir, "index.js"),
       "import { registerRootComponent } from 'expo';\nregisterRootComponent(App);\n",
@@ -1430,8 +1560,14 @@ describe("cli analyze command", () => {
       }),
     ).toBe(0);
 
-    const reconstructionPath = join(repoDir, "rn-mt.generated.reconstruction.json");
-    const reconstructionContentsBeforeSync = readFileSync(reconstructionPath, "utf8");
+    const reconstructionPath = join(
+      repoDir,
+      "rn-mt.generated.reconstruction.json",
+    );
+    const reconstructionContentsBeforeSync = readFileSync(
+      reconstructionPath,
+      "utf8",
+    );
     const reconstructionHashBeforeSync = createHash("sha256")
       .update(reconstructionContentsBeforeSync)
       .digest("hex");
@@ -1443,7 +1579,10 @@ describe("cli analyze command", () => {
       }),
     ).toBe(0);
 
-    const reconstructionContentsAfterSync = readFileSync(reconstructionPath, "utf8");
+    const reconstructionContentsAfterSync = readFileSync(
+      reconstructionPath,
+      "utf8",
+    );
     const reconstructionHashAfterSync = createHash("sha256")
       .update(reconstructionContentsAfterSync)
       .digest("hex");
@@ -1479,7 +1618,10 @@ describe("cli analyze command", () => {
         dependencies: { expo: "~52.0.0" },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -1494,13 +1636,18 @@ describe("cli analyze command", () => {
         },
       }),
     );
-    writeFileSync(join(repoDir, "App.tsx"), "export default function App() { return null; }\n");
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      "export default function App() { return null; }\n",
+    );
     mkdirSync(join(repoDir, "theme"), { recursive: true });
     writeFileSync(
       join(repoDir, "theme", "index.ts"),
       "export default { color: 'shared' };\n",
     );
-    mkdirSync(join(repoDir, "src", "rn-mt", "current", "theme"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "rn-mt", "current", "theme"), {
+      recursive: true,
+    });
     writeFileSync(
       join(repoDir, "src", "rn-mt", "current", "theme", "index.ts"),
       "// user-owned conflict\n",
@@ -1513,7 +1660,9 @@ describe("cli analyze command", () => {
     const errorOutput = stderr.mock.calls.map(([chunk]) => chunk).join("");
 
     expect(exitCode).toBe(1);
-    expect(errorOutput).toContain("Refusing to overwrite generated artifact without CLI ownership metadata");
+    expect(errorOutput).toContain(
+      "Refusing to overwrite generated artifact without CLI ownership metadata",
+    );
     expect(errorOutput).toContain("src/rn-mt/current/theme/index.ts");
     expect(stdout).not.toHaveBeenCalled();
   });
@@ -1530,7 +1679,10 @@ describe("cli analyze command", () => {
         dependencies: { expo: "~52.0.0" },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -1545,7 +1697,10 @@ describe("cli analyze command", () => {
         },
       }),
     );
-    writeFileSync(join(repoDir, "App.tsx"), "export default function App() { return null; }\n");
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      "export default function App() { return null; }\n",
+    );
     mkdirSync(join(repoDir, "src", "rn-mt", "extensions"), { recursive: true });
     writeFileSync(
       join(repoDir, "src", "rn-mt", "extensions", "index.ts"),
@@ -1567,7 +1722,10 @@ describe("cli analyze command", () => {
       },
     ]);
     expect(
-      readFileSync(join(repoDir, "src", "rn-mt", "extensions", "index.ts"), "utf8"),
+      readFileSync(
+        join(repoDir, "src", "rn-mt", "extensions", "index.ts"),
+        "utf8",
+      ),
     ).toBe("export const rnMtExtensions = { custom: true };\n");
     expect(stderr).not.toHaveBeenCalled();
   });
@@ -1584,7 +1742,10 @@ describe("cli analyze command", () => {
         dependencies: { expo: "~52.0.0" },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -1616,10 +1777,13 @@ describe("cli analyze command", () => {
       "export default { apiBaseUrl: 'https://example.com' };\n",
     );
 
-    const exitCode = runCli(["convert", "--json", "--bridge-config", "src/config/index.ts"], {
-      cwd: repoDir,
-      io: { stdout, stderr },
-    });
+    const exitCode = runCli(
+      ["convert", "--json", "--bridge-config", "src/config/index.ts"],
+      {
+        cwd: repoDir,
+        io: { stdout, stderr },
+      },
+    );
     const output = stdout.mock.calls.map(([chunk]) => chunk).join("");
     const parsed = JSON.parse(output);
 
@@ -1637,7 +1801,10 @@ describe("cli analyze command", () => {
       readFileSync(join(repoDir, "src", "config", "index.ts"), "utf8"),
     ).toContain("CLI-owned host config bridge");
     expect(
-      readFileSync(join(repoDir, "src", "rn-mt", "shared", "src", "config", "index.ts"), "utf8"),
+      readFileSync(
+        join(repoDir, "src", "rn-mt", "shared", "src", "config", "index.ts"),
+        "utf8",
+      ),
     ).toContain("apiBaseUrl");
     expect(stderr).not.toHaveBeenCalled();
   });
@@ -1654,7 +1821,10 @@ describe("cli analyze command", () => {
         dependencies: { expo: "~52.0.0" },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -1670,7 +1840,10 @@ describe("cli analyze command", () => {
       }),
     );
     mkdirSync(join(repoDir, "theme"), { recursive: true });
-    writeFileSync(join(repoDir, "App.tsx"), "export default function App() { return null; }\n");
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      "export default function App() { return null; }\n",
+    );
     writeFileSync(
       join(repoDir, "theme", "index.ts"),
       "export default { color: 'shared' };\n",
@@ -1683,7 +1856,9 @@ describe("cli analyze command", () => {
     const errorOutput = stderr.mock.calls.map(([chunk]) => chunk).join("");
 
     expect(exitCode).toBe(1);
-    expect(errorOutput).toContain("Bridge mode only supports explicit host config modules.");
+    expect(errorOutput).toContain(
+      "Bridge mode only supports explicit host config modules.",
+    );
     expect(stdout).not.toHaveBeenCalled();
   });
 
@@ -1718,7 +1893,10 @@ describe("cli analyze command", () => {
         },
       }),
     );
-    writeFileSync(join(repoDir, "App.tsx"), "export default function App() { return null; }\n");
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      "export default function App() { return null; }\n",
+    );
 
     const exitCode = runCli(["convert"], {
       cwd: repoDir,
@@ -1749,7 +1927,10 @@ describe("cli analyze command", () => {
     const secondStderr = vi.fn();
 
     mkdirSync(join(repoDir, "ios", "KeepNexus.xcodeproj"), { recursive: true });
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -1783,7 +1964,9 @@ describe("cli analyze command", () => {
       io: { stdout: secondStdout, stderr: secondStderr },
     });
     const firstOutput = firstStdout.mock.calls.map(([chunk]) => chunk).join("");
-    const secondOutput = secondStdout.mock.calls.map(([chunk]) => chunk).join("");
+    const secondOutput = secondStdout.mock.calls
+      .map(([chunk]) => chunk)
+      .join("");
 
     expect(firstExitCode).toBe(0);
     expect(secondExitCode).toBe(0);
@@ -1794,9 +1977,9 @@ describe("cli analyze command", () => {
     expect(firstOutput).toContain("config=rn-mt.config.json");
     expect(firstOutput).toContain("sync=updated");
     expect(secondOutput).toContain("sync=up-to-date");
-    expect(readFileSync(join(repoDir, ".rn-mt", "hook-state.json"), "utf8")).toContain(
-      '"preios"',
-    );
+    expect(
+      readFileSync(join(repoDir, ".rn-mt", "hook-state.json"), "utf8"),
+    ).toContain('"preios"');
     expect(firstStderr).not.toHaveBeenCalled();
     expect(secondStderr).not.toHaveBeenCalled();
   });
@@ -1809,7 +1992,9 @@ describe("cli analyze command", () => {
     mkdirSync(join(repoDir, ".git"));
     mkdirSync(join(repoDir, "theme"), { recursive: true });
     mkdirSync(join(repoDir, "src", "config"), { recursive: true });
-    mkdirSync(join(repoDir, "node_modules", "@rn-mt", "runtime"), { recursive: true });
+    mkdirSync(join(repoDir, "node_modules", "@rn-mt", "runtime"), {
+      recursive: true,
+    });
     writeFileSync(
       join(repoDir, "package.json"),
       JSON.stringify({
@@ -1817,7 +2002,10 @@ describe("cli analyze command", () => {
         dependencies: { expo: "~52.0.0" },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
     writeFileSync(
       join(repoDir, "tsconfig.json"),
       JSON.stringify(
@@ -1915,12 +2103,7 @@ describe("cli analyze command", () => {
     );
     writeFileSync(
       join(repoDir, "index.ts"),
-      [
-        'import App from "./App";',
-        "",
-        "export default App;",
-        "",
-      ].join("\n"),
+      ['import App from "./App";', "", "export default App;", ""].join("\n"),
     );
     writeFileSync(
       join(repoDir, "theme", "index.ts"),
@@ -1937,26 +2120,31 @@ describe("cli analyze command", () => {
     });
 
     expect(exitCode).toBe(0);
-    expect(readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.ts"), "utf8")).toContain(
-      'import theme from "../current/theme/index";',
-    );
-    expect(readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.ts"), "utf8")).toContain(
-      'import config from "../current/src/config/index";',
-    );
-    expect(readFileSync(join(repoDir, "src", "rn-mt", "shared", "index.ts"), "utf8")).toContain(
-      'import App from "../current/App";',
-    );
-    expect(readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.ts"), "utf8")).not.toContain(
-      'import theme from "./theme";',
-    );
-    expect(readFileSync(join(repoDir, "src", "rn-mt", "shared", "index.ts"), "utf8")).not.toContain(
-      'import App from "./App";',
-    );
+    expect(
+      readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.ts"), "utf8"),
+    ).toContain('import theme from "../current/theme/index";');
+    expect(
+      readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.ts"), "utf8"),
+    ).toContain('import config from "../current/src/config/index";');
+    expect(
+      readFileSync(join(repoDir, "src", "rn-mt", "shared", "index.ts"), "utf8"),
+    ).toContain('import App from "../current/App";');
+    expect(
+      readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.ts"), "utf8"),
+    ).not.toContain('import theme from "./theme";');
+    expect(
+      readFileSync(join(repoDir, "src", "rn-mt", "shared", "index.ts"), "utf8"),
+    ).not.toContain('import App from "./App";');
 
     try {
       execFileSync(
         process.execPath,
-        [join(process.cwd(), "node_modules", "typescript", "bin", "tsc"), "--noEmit", "-p", "tsconfig.json"],
+        [
+          join(process.cwd(), "node_modules", "typescript", "bin", "tsc"),
+          "--noEmit",
+          "-p",
+          "tsconfig.json",
+        ],
         {
           cwd: repoDir,
           stdio: "pipe",
@@ -1980,7 +2168,9 @@ describe("cli analyze command", () => {
     mkdirSync(join(repoDir, ".git"));
     mkdirSync(join(repoDir, "src", "theme"), { recursive: true });
     mkdirSync(join(repoDir, "src", "config"), { recursive: true });
-    mkdirSync(join(repoDir, "node_modules", "@rn-mt", "runtime"), { recursive: true });
+    mkdirSync(join(repoDir, "node_modules", "@rn-mt", "runtime"), {
+      recursive: true,
+    });
     writeFileSync(
       join(repoDir, "package.json"),
       JSON.stringify({
@@ -1988,7 +2178,10 @@ describe("cli analyze command", () => {
         dependencies: { expo: "~52.0.0" },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
     writeFileSync(
       join(repoDir, "tsconfig.json"),
       JSON.stringify(
@@ -2090,12 +2283,7 @@ describe("cli analyze command", () => {
     );
     writeFileSync(
       join(repoDir, "index.ts"),
-      [
-        'import App from "./App";',
-        "",
-        "export default App;",
-        "",
-      ].join("\n"),
+      ['import App from "./App";', "", "export default App;", ""].join("\n"),
     );
     writeFileSync(
       join(repoDir, "src", "theme", "index.ts"),
@@ -2112,20 +2300,25 @@ describe("cli analyze command", () => {
     });
 
     expect(exitCode).toBe(0);
-    expect(readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.ts"), "utf8")).toContain(
-      'import theme from "@/rn-mt/current/src/theme/index";',
-    );
-    expect(readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.ts"), "utf8")).toContain(
-      'import config from "@/rn-mt/current/src/config/index";',
-    );
-    expect(readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.ts"), "utf8")).not.toContain(
-      'import theme from "../current/theme/index";',
-    );
+    expect(
+      readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.ts"), "utf8"),
+    ).toContain('import theme from "@/rn-mt/current/src/theme/index";');
+    expect(
+      readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.ts"), "utf8"),
+    ).toContain('import config from "@/rn-mt/current/src/config/index";');
+    expect(
+      readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.ts"), "utf8"),
+    ).not.toContain('import theme from "../current/theme/index";');
 
     try {
       execFileSync(
         process.execPath,
-        [join(process.cwd(), "node_modules", "typescript", "bin", "tsc"), "--noEmit", "-p", "tsconfig.json"],
+        [
+          join(process.cwd(), "node_modules", "typescript", "bin", "tsc"),
+          "--noEmit",
+          "-p",
+          "tsconfig.json",
+        ],
         {
           cwd: repoDir,
           stdio: "pipe",
@@ -2147,8 +2340,12 @@ describe("cli analyze command", () => {
     const stdout = vi.fn();
     const stderr = vi.fn();
 
-    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), { recursive: true });
-    mkdirSync(join(repoDir, "src", "rn-mt", "current", "theme"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), {
+      recursive: true,
+    });
+    mkdirSync(join(repoDir, "src", "rn-mt", "current", "theme"), {
+      recursive: true,
+    });
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -2177,10 +2374,13 @@ describe("cli analyze command", () => {
       ].join("\n"),
     );
 
-    const exitCode = runCli(["override", "create", "theme/index.ts", "--json"], {
-      cwd: repoDir,
-      io: { stdout, stderr },
-    });
+    const exitCode = runCli(
+      ["override", "create", "theme/index.ts", "--json"],
+      {
+        cwd: repoDir,
+        io: { stdout, stderr },
+      },
+    );
 
     const output = stdout.mock.calls.map(([chunk]) => chunk).join("");
     const parsed = JSON.parse(output);
@@ -2203,13 +2403,24 @@ describe("cli analyze command", () => {
     });
     expect(
       readFileSync(
-        join(repoDir, "src", "rn-mt", "tenants", "fixture-app", "theme", "index.ts"),
+        join(
+          repoDir,
+          "src",
+          "rn-mt",
+          "tenants",
+          "fixture-app",
+          "theme",
+          "index.ts",
+        ),
         "utf8",
       ),
     ).toBe("export default { color: 'shared' };\n");
     expect(
-      readFileSync(join(repoDir, "src", "rn-mt", "current", "theme", "index.ts"), "utf8"),
-    ).toContain('../../tenants/fixture-app/theme/index');
+      readFileSync(
+        join(repoDir, "src", "rn-mt", "current", "theme", "index.ts"),
+        "utf8",
+      ),
+    ).toContain("../../tenants/fixture-app/theme/index");
     expect(stderr).not.toHaveBeenCalled();
   });
 
@@ -2218,10 +2429,15 @@ describe("cli analyze command", () => {
     const stdout = vi.fn();
     const stderr = vi.fn();
 
-    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), { recursive: true });
-    mkdirSync(join(repoDir, "src", "rn-mt", "tenants", "fixture-app", "theme"), {
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), {
       recursive: true,
     });
+    mkdirSync(
+      join(repoDir, "src", "rn-mt", "tenants", "fixture-app", "theme"),
+      {
+        recursive: true,
+      },
+    );
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -2241,7 +2457,15 @@ describe("cli analyze command", () => {
       "export default { color: 'shared' };\n",
     );
     writeFileSync(
-      join(repoDir, "src", "rn-mt", "tenants", "fixture-app", "theme", "index.ts"),
+      join(
+        repoDir,
+        "src",
+        "rn-mt",
+        "tenants",
+        "fixture-app",
+        "theme",
+        "index.ts",
+      ),
       "export default { color: 'tenant' };\n",
     );
 
@@ -2262,11 +2486,18 @@ describe("cli analyze command", () => {
     const stdout = vi.fn();
     const stderr = vi.fn();
 
-    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), { recursive: true });
-    mkdirSync(join(repoDir, "src", "rn-mt", "current", "theme"), { recursive: true });
-    mkdirSync(join(repoDir, "src", "rn-mt", "tenants", "fixture-app", "theme"), {
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), {
       recursive: true,
     });
+    mkdirSync(join(repoDir, "src", "rn-mt", "current", "theme"), {
+      recursive: true,
+    });
+    mkdirSync(
+      join(repoDir, "src", "rn-mt", "tenants", "fixture-app", "theme"),
+      {
+        recursive: true,
+      },
+    );
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -2286,7 +2517,15 @@ describe("cli analyze command", () => {
       "export default { color: 'shared' };\n",
     );
     writeFileSync(
-      join(repoDir, "src", "rn-mt", "tenants", "fixture-app", "theme", "index.ts"),
+      join(
+        repoDir,
+        "src",
+        "rn-mt",
+        "tenants",
+        "fixture-app",
+        "theme",
+        "index.ts",
+      ),
       "export default { color: 'tenant' };\n",
     );
     writeFileSync(
@@ -2299,10 +2538,13 @@ describe("cli analyze command", () => {
       ].join("\n"),
     );
 
-    const exitCode = runCli(["override", "remove", "theme/index.ts", "--json"], {
-      cwd: repoDir,
-      io: { stdout, stderr },
-    });
+    const exitCode = runCli(
+      ["override", "remove", "theme/index.ts", "--json"],
+      {
+        cwd: repoDir,
+        io: { stdout, stderr },
+      },
+    );
 
     const output = stdout.mock.calls.map(([chunk]) => chunk).join("");
     const parsed = JSON.parse(output);
@@ -2311,13 +2553,34 @@ describe("cli analyze command", () => {
     expect(parsed.command).toBe("override remove");
     expect(parsed.status).toBe("removed");
     expect(parsed.removedFilePath).toBe(
-      join(repoDir, "src", "rn-mt", "tenants", "fixture-app", "theme", "index.ts"),
+      join(
+        repoDir,
+        "src",
+        "rn-mt",
+        "tenants",
+        "fixture-app",
+        "theme",
+        "index.ts",
+      ),
     );
     expect(
-      existsSync(join(repoDir, "src", "rn-mt", "tenants", "fixture-app", "theme", "index.ts")),
+      existsSync(
+        join(
+          repoDir,
+          "src",
+          "rn-mt",
+          "tenants",
+          "fixture-app",
+          "theme",
+          "index.ts",
+        ),
+      ),
     ).toBe(false);
     expect(
-      readFileSync(join(repoDir, "src", "rn-mt", "current", "theme", "index.ts"), "utf8"),
+      readFileSync(
+        join(repoDir, "src", "rn-mt", "current", "theme", "index.ts"),
+        "utf8",
+      ),
     ).toContain("../../shared/theme/index");
     expect(stderr).not.toHaveBeenCalled();
   });
@@ -2327,7 +2590,9 @@ describe("cli analyze command", () => {
     const stdout = vi.fn();
     const stderr = vi.fn();
 
-    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), {
+      recursive: true,
+    });
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -2364,7 +2629,9 @@ describe("cli analyze command", () => {
     const stdout = vi.fn();
     const stderr = vi.fn();
 
-    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), {
+      recursive: true,
+    });
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -2411,7 +2678,9 @@ describe("cli analyze command", () => {
         path: join(repoDir, "src", "rn-mt", "shared", "theme", "branding.ts"),
       }),
     ]);
-    expect(parsed.findings[0].summary).toContain("likely wants a mirrored tenant override");
+    expect(parsed.findings[0].summary).toContain(
+      "likely wants a mirrored tenant override",
+    );
     expect(parsed.findings[0].evidence).toEqual([
       'Matched default tenant id "fixture-app" in shared file contents.',
       'Matched default tenant display name "Fixture App" in shared file contents.',
@@ -2424,7 +2693,9 @@ describe("cli analyze command", () => {
     const stdout = vi.fn();
     const stderr = vi.fn();
 
-    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), {
+      recursive: true,
+    });
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -2474,7 +2745,9 @@ describe("cli analyze command", () => {
     const stdout = vi.fn();
     const stderr = vi.fn();
 
-    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), {
+      recursive: true,
+    });
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -2515,7 +2788,9 @@ describe("cli analyze command", () => {
     const stdout = vi.fn();
     const stderr = vi.fn();
 
-    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), {
+      recursive: true,
+    });
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -2552,7 +2827,9 @@ describe("cli analyze command", () => {
     const stdout = vi.fn();
     const stderr = vi.fn();
 
-    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), {
+      recursive: true,
+    });
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -2737,8 +3014,13 @@ describe("cli analyze command", () => {
       cwd: repoDir,
       io: { stdout: secondStdout, stderr: secondStderr },
     });
-    const parsed = JSON.parse(secondStdout.mock.calls.map(([chunk]) => chunk).join(""));
-    const runtimeContents = readFileSync(join(repoDir, "rn-mt.generated.runtime.json"), "utf8");
+    const parsed = JSON.parse(
+      secondStdout.mock.calls.map(([chunk]) => chunk).join(""),
+    );
+    const runtimeContents = readFileSync(
+      join(repoDir, "rn-mt.generated.runtime.json"),
+      "utf8",
+    );
 
     expect(firstExitCode).toBe(0);
     expect(secondExitCode).toBe(0);
@@ -2832,12 +3114,17 @@ describe("cli analyze command", () => {
       cwd: repoDir,
       io: { stdout, stderr },
     });
-    const parsed = JSON.parse(stdout.mock.calls.map(([chunk]) => chunk).join(""));
+    const parsed = JSON.parse(
+      stdout.mock.calls.map(([chunk]) => chunk).join(""),
+    );
 
     expect(exitCode).toBe(0);
     expect(parsed.status).toBe("updated");
     expect(
-      readFileSync(join(repoDir, "src", "rn-mt", "extensions", "index.ts"), "utf8"),
+      readFileSync(
+        join(repoDir, "src", "rn-mt", "extensions", "index.ts"),
+        "utf8",
+      ),
     ).toBe("export const rnMtExtensions = { custom: true };\n");
     expect(stderr).not.toHaveBeenCalled();
   });
@@ -2933,7 +3220,9 @@ describe("cli analyze command", () => {
       writeFile,
     });
 
-    const secondOutput = secondStdout.mock.calls.map(([chunk]) => chunk).join("");
+    const secondOutput = secondStdout.mock.calls
+      .map(([chunk]) => chunk)
+      .join("");
     const secondParsed = JSON.parse(secondOutput);
 
     expect(firstExitCode).toBe(0);
@@ -3013,7 +3302,9 @@ describe("cli analyze command", () => {
       writeFile,
     });
 
-    const secondOutput = secondStdout.mock.calls.map(([chunk]) => chunk).join("");
+    const secondOutput = secondStdout.mock.calls
+      .map(([chunk]) => chunk)
+      .join("");
     const secondParsed = JSON.parse(secondOutput);
 
     expect(firstExitCode).toBe(0);
@@ -3055,8 +3346,8 @@ describe("cli analyze command", () => {
       cwd: "/tmp/supported-fixture",
       io: { stdout, stderr },
       fileExists: (path) =>
-        path === "/tmp/supported-fixture/rn-mt.config.json"
-        || path === "/tmp/supported-fixture/assets/icon.png",
+        path === "/tmp/supported-fixture/rn-mt.config.json" ||
+        path === "/tmp/supported-fixture/assets/icon.png",
       readFile: (path) => {
         if (path === "/tmp/supported-fixture/assets/icon.png") {
           return "icon-prod";
@@ -3086,7 +3377,8 @@ describe("cli analyze command", () => {
     const output = stdout.mock.calls.map(([chunk]) => chunk).join("");
     const parsed = JSON.parse(output);
     const derivedWrite = writeFile.mock.calls.find(
-      ([path]) => path === "/tmp/supported-fixture/ios/rn-mt.generated.icon.prod.svg",
+      ([path]) =>
+        path === "/tmp/supported-fixture/ios/rn-mt.generated.icon.prod.svg",
     );
 
     expect(exitCode).toBe(0);
@@ -3187,9 +3479,9 @@ describe("cli analyze command", () => {
 
     expect(humanOutput).toContain("Synced target: demo-app/dev");
     expect(humanOutput).toContain("Updated file:");
-    expect(readFileSync(join(repoDir, "rn-mt.generated.expo.js"), "utf8")).toContain(
-      '"tenant": "demo-app"',
-    );
+    expect(
+      readFileSync(join(repoDir, "rn-mt.generated.expo.js"), "utf8"),
+    ).toContain('"tenant": "demo-app"');
     expect(parsedConfig).toEqual({
       slug: "expo-fixture",
       name: "Keep Nexus (Dev)",
@@ -3446,7 +3738,10 @@ describe("cli analyze command", () => {
     const stderr = vi.fn();
 
     mkdirSync(join(repoDir, "android", "app"), { recursive: true });
-    writeFileSync(join(repoDir, "android", "app", "build.gradle"), "android {}\n");
+    writeFileSync(
+      join(repoDir, "android", "app", "build.gradle"),
+      "android {}\n",
+    );
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -3481,9 +3776,21 @@ describe("cli analyze command", () => {
 
     expect(exitCode).toBe(0);
 
-    const parsed = JSON.parse(stdout.mock.calls.map(([chunk]) => chunk).join(""));
-    const identityConfigPath = join(repoDir, "android", "app", "rn-mt.generated.identity.gradle");
-    const flavorConfigPath = join(repoDir, "android", "app", "rn-mt.generated.flavors.gradle");
+    const parsed = JSON.parse(
+      stdout.mock.calls.map(([chunk]) => chunk).join(""),
+    );
+    const identityConfigPath = join(
+      repoDir,
+      "android",
+      "app",
+      "rn-mt.generated.identity.gradle",
+    );
+    const flavorConfigPath = join(
+      repoDir,
+      "android",
+      "app",
+      "rn-mt.generated.flavors.gradle",
+    );
     const identityConfigContents = readFileSync(identityConfigPath, "utf8");
     const flavorConfigContents = readFileSync(flavorConfigPath, "utf8");
     const ownership = JSON.parse(
@@ -3504,13 +3811,21 @@ describe("cli analyze command", () => {
         },
       ]),
     );
-    expect(identityConfigContents).toContain('applicationId "com.keep.nexus.staging"');
+    expect(identityConfigContents).toContain(
+      'applicationId "com.keep.nexus.staging"',
+    );
     expect(identityConfigContents).toContain(
       'resValue "string", "app_name", "Keep Nexus (Staging)"',
     );
-    expect(flavorConfigContents).toContain('flavorDimensions "tenant", "environment"');
-    expect(flavorConfigContents).toContain("// Selected target: demo-app/staging/android");
-    expect(flavorConfigContents).toContain("// Selected applicationId: com.keep.nexus.staging");
+    expect(flavorConfigContents).toContain(
+      'flavorDimensions "tenant", "environment"',
+    );
+    expect(flavorConfigContents).toContain(
+      "// Selected target: demo-app/staging/android",
+    );
+    expect(flavorConfigContents).toContain(
+      "// Selected applicationId: com.keep.nexus.staging",
+    );
     expect(ownership.artifacts).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -3565,7 +3880,9 @@ describe("cli analyze command", () => {
 
     expect(exitCode).toBe(0);
 
-    const parsed = JSON.parse(stdout.mock.calls.map(([chunk]) => chunk).join(""));
+    const parsed = JSON.parse(
+      stdout.mock.calls.map(([chunk]) => chunk).join(""),
+    );
     const schemePath = join(
       repoDir,
       "ios",
@@ -3574,8 +3891,16 @@ describe("cli analyze command", () => {
       "xcschemes",
       "DemoApp-Staging.xcscheme",
     );
-    const currentXcconfigPath = join(repoDir, "ios", "rn-mt.generated.current.xcconfig");
-    const targetXcconfigPath = join(repoDir, "ios", "rn-mt.generated.demo-app-staging.xcconfig");
+    const currentXcconfigPath = join(
+      repoDir,
+      "ios",
+      "rn-mt.generated.current.xcconfig",
+    );
+    const targetXcconfigPath = join(
+      repoDir,
+      "ios",
+      "rn-mt.generated.demo-app-staging.xcconfig",
+    );
     const ownership = JSON.parse(
       readFileSync(join(repoDir, "rn-mt.generated.ownership.json"), "utf8"),
     );
@@ -3599,7 +3924,9 @@ describe("cli analyze command", () => {
         },
       ]),
     );
-    expect(readFileSync(schemePath, "utf8")).toContain("Selected target: demo-app/staging/ios");
+    expect(readFileSync(schemePath, "utf8")).toContain(
+      "Selected target: demo-app/staging/ios",
+    );
     expect(readFileSync(currentXcconfigPath, "utf8")).toContain(
       '#include "rn-mt.generated.demo-app-staging.xcconfig"',
     );
@@ -3668,7 +3995,8 @@ describe("cli analyze command", () => {
     const output = stdout.mock.calls.map(([chunk]) => chunk).join("");
     const parsed = JSON.parse(output);
     const runtimeWrite = writeFile.mock.calls.find(
-      ([path]) => path === "/tmp/supported-fixture/rn-mt.generated.runtime.json",
+      ([path]) =>
+        path === "/tmp/supported-fixture/rn-mt.generated.runtime.json",
     );
 
     expect(exitCode).toBe(0);
@@ -3718,24 +4046,27 @@ describe("cli analyze command", () => {
       ].join("\n"),
     };
 
-    const exitCode = runCli(["run", "--json", "--", "node", "-e", "console.log('ok')"], {
-      cwd: "/tmp/supported-fixture",
-      io: { stdout, stderr },
-      env: {
-        PATH: "/usr/bin",
-      },
-      fileExists: (path) => path in files,
-      readFile: (path) => {
-        const contents = files[path];
+    const exitCode = runCli(
+      ["run", "--json", "--", "node", "-e", "console.log('ok')"],
+      {
+        cwd: "/tmp/supported-fixture",
+        io: { stdout, stderr },
+        env: {
+          PATH: "/usr/bin",
+        },
+        fileExists: (path) => path in files,
+        readFile: (path) => {
+          const contents = files[path];
 
-        if (typeof contents !== "string") {
-          throw new Error(`Missing test fixture file: ${path}`);
-        }
+          if (typeof contents !== "string") {
+            throw new Error(`Missing test fixture file: ${path}`);
+          }
 
-        return contents;
+          return contents;
+        },
+        runSubprocess,
       },
-      runSubprocess,
-    });
+    );
 
     const output = stdout.mock.calls.map(([chunk]) => chunk).join("");
     const parsed = JSON.parse(output);
@@ -3760,7 +4091,11 @@ describe("cli analyze command", () => {
       },
     );
     const subprocessCall = runSubprocess.mock.calls[0] as
-      | [string, string[], { cwd: string; env: Record<string, string | undefined> }]
+      | [
+          string,
+          string[],
+          { cwd: string; env: Record<string, string | undefined> },
+        ]
       | undefined;
     const subprocessEnv = subprocessCall?.[2].env;
 
@@ -3825,7 +4160,10 @@ describe("cli analyze command", () => {
   });
 
   it("dispatches the unified start surface for Expo managed repos", () => {
-    const repoDir = createWorkflowFixtureRepo("rn-mt-cli-workflow-expo-start-", "expo-managed");
+    const repoDir = createWorkflowFixtureRepo(
+      "rn-mt-cli-workflow-expo-start-",
+      "expo-managed",
+    );
     const stdout = vi.fn();
     const stderr = vi.fn();
     const runSubprocess = vi.fn(() => ({ status: 0 }));
@@ -3842,7 +4180,11 @@ describe("cli analyze command", () => {
     const output = stdout.mock.calls.map(([chunk]) => chunk).join("");
     const parsed = JSON.parse(output);
     const subprocessCall = runSubprocess.mock.calls[0] as
-      | [string, string[], { cwd: string; env: Record<string, string | undefined> }]
+      | [
+          string,
+          string[],
+          { cwd: string; env: Record<string, string | undefined> },
+        ]
       | undefined;
     const subprocessEnv = subprocessCall?.[2].env;
 
@@ -3859,28 +4201,30 @@ describe("cli analyze command", () => {
         scope: "environment",
       },
     ]);
-    expect(runSubprocess).toHaveBeenCalledWith(
-      "expo",
-      ["start"],
-      {
-        cwd: repoDir,
-        env: expect.objectContaining({
-          API_BASE_URL: "https://dev.example.com",
-          EXPO_NO_TELEMETRY: "1",
-          DO_NOT_TRACK: "1",
-          RN_MT_NETWORK_MODE: "local-first",
-        }),
-      },
+    expect(runSubprocess).toHaveBeenCalledWith("expo", ["start"], {
+      cwd: repoDir,
+      env: expect.objectContaining({
+        API_BASE_URL: "https://dev.example.com",
+        EXPO_NO_TELEMETRY: "1",
+        DO_NOT_TRACK: "1",
+        RN_MT_NETWORK_MODE: "local-first",
+      }),
+    });
+    expect(subprocessEnv?.PATH).toMatch(
+      new RegExp(`^${repoDir}/node_modules/\\.bin:`),
     );
-    expect(subprocessEnv?.PATH).toMatch(new RegExp(`^${repoDir}/node_modules/\\.bin:`));
     expect(stderr).not.toHaveBeenCalled();
   });
 
   it("dispatches the unified run surface for bare React Native repos", () => {
-    const repoDir = createWorkflowFixtureRepo("rn-mt-cli-workflow-bare-run-", "bare-react-native", {
-      environment: "staging",
-      includeTenantEnv: true,
-    });
+    const repoDir = createWorkflowFixtureRepo(
+      "rn-mt-cli-workflow-bare-run-",
+      "bare-react-native",
+      {
+        environment: "staging",
+        includeTenantEnv: true,
+      },
+    );
     const stdout = vi.fn();
     const stderr = vi.fn();
     const runSubprocess = vi.fn(() => ({ status: 0 }));
@@ -3933,7 +4277,10 @@ describe("cli analyze command", () => {
   });
 
   it("dispatches the unified build surface for Expo managed repos", () => {
-    const repoDir = createWorkflowFixtureRepo("rn-mt-cli-workflow-expo-build-", "expo-managed");
+    const repoDir = createWorkflowFixtureRepo(
+      "rn-mt-cli-workflow-expo-build-",
+      "expo-managed",
+    );
     const stdout = vi.fn();
     const stderr = vi.fn();
     const runSubprocess = vi.fn(() => ({ status: 0 }));
@@ -3958,16 +4305,12 @@ describe("cli analyze command", () => {
       environment: "dev",
       platform: "ios",
     });
-    expect(runSubprocess).toHaveBeenCalledWith(
-      "expo",
-      ["run:ios"],
-      {
-        cwd: repoDir,
-        env: expect.objectContaining({
-          API_BASE_URL: "https://dev.example.com",
-        }),
-      },
-    );
+    expect(runSubprocess).toHaveBeenCalledWith("expo", ["run:ios"], {
+      cwd: repoDir,
+      env: expect.objectContaining({
+        API_BASE_URL: "https://dev.example.com",
+      }),
+    });
     expect(stderr).not.toHaveBeenCalled();
   });
 
@@ -4023,7 +4366,9 @@ describe("cli analyze command", () => {
         NO_PROXY: "*",
       },
     });
-    const parsed = JSON.parse(stdout.mock.calls.map(([chunk]) => chunk).join(""));
+    const parsed = JSON.parse(
+      stdout.mock.calls.map(([chunk]) => chunk).join(""),
+    );
 
     expect(exitCode).toBe(0);
     expect(parsed.command).toBe("sync");
@@ -4350,7 +4695,15 @@ describe("cli analyze command", () => {
     const writeFile = vi.fn();
 
     const exitCode = runCli(
-      ["target", "set", "--tenant", "acme", "--environment", "staging", "--json"],
+      [
+        "target",
+        "set",
+        "--tenant",
+        "acme",
+        "--environment",
+        "staging",
+        "--json",
+      ],
       {
         cwd: "/tmp/supported-fixture",
         io: { stdout, stderr },
@@ -4390,11 +4743,14 @@ describe("cli analyze command", () => {
     const stdout = vi.fn();
     const stderr = vi.fn();
 
-    const exitCode = runCli(["target", "set", "--tenant", "acme", "--environment", "dev"], {
-      cwd: "/tmp/supported-fixture",
-      io: { stdout, stderr },
-      fileExists: () => false,
-    });
+    const exitCode = runCli(
+      ["target", "set", "--tenant", "acme", "--environment", "dev"],
+      {
+        cwd: "/tmp/supported-fixture",
+        io: { stdout, stderr },
+        fileExists: () => false,
+      },
+    );
 
     const errorOutput = stderr.mock.calls.map(([chunk]) => chunk).join("");
 
@@ -4409,23 +4765,26 @@ describe("cli analyze command", () => {
     const stdout = vi.fn();
     const stderr = vi.fn();
 
-    const exitCode = runCli(["target", "set", "--tenant", "acme", "--environment", "dev"], {
-      cwd: "/tmp/supported-fixture",
-      io: { stdout, stderr },
-      fileExists: () => true,
-      readFile: () =>
-        JSON.stringify({
-          schemaVersion: 1,
-          source: { rootDir: "/tmp/supported-fixture" },
-          defaults: { tenant: "demo-app", environment: "dev" },
-          tenants: {
-            "demo-app": { displayName: "Demo App" },
-          },
-          environments: {
-            dev: { displayName: "Development" },
-          },
-        }),
-    });
+    const exitCode = runCli(
+      ["target", "set", "--tenant", "acme", "--environment", "dev"],
+      {
+        cwd: "/tmp/supported-fixture",
+        io: { stdout, stderr },
+        fileExists: () => true,
+        readFile: () =>
+          JSON.stringify({
+            schemaVersion: 1,
+            source: { rootDir: "/tmp/supported-fixture" },
+            defaults: { tenant: "demo-app", environment: "dev" },
+            tenants: {
+              "demo-app": { displayName: "Demo App" },
+            },
+            environments: {
+              dev: { displayName: "Development" },
+            },
+          }),
+      },
+    );
 
     const errorOutput = stderr.mock.calls.map(([chunk]) => chunk).join("");
 
@@ -4455,7 +4814,15 @@ describe("cli analyze command", () => {
     );
 
     const addExitCode = runCli(
-      ["tenant", "add", "--id", "acme-beta", "--display-name", "Acme Beta", "--json"],
+      [
+        "tenant",
+        "add",
+        "--id",
+        "acme-beta",
+        "--display-name",
+        "Acme Beta",
+        "--json",
+      ],
       {
         cwd: repoDir,
         io: { stdout, stderr },
@@ -4470,11 +4837,14 @@ describe("cli analyze command", () => {
       id: "acme-beta",
       displayName: "Acme Beta",
     });
-    expect(existsSync(join(repoDir, "src", "rn-mt", "tenants", "acme-beta", ".gitkeep"))).toBe(
-      true,
-    );
     expect(
-      JSON.parse(readFileSync(join(repoDir, "rn-mt.config.json"), "utf8")).tenants["acme-beta"],
+      existsSync(
+        join(repoDir, "src", "rn-mt", "tenants", "acme-beta", ".gitkeep"),
+      ),
+    ).toBe(true);
+    expect(
+      JSON.parse(readFileSync(join(repoDir, "rn-mt.config.json"), "utf8"))
+        .tenants["acme-beta"],
     ).toEqual({
       displayName: "Acme Beta",
     });
@@ -4483,7 +4853,15 @@ describe("cli analyze command", () => {
     stderr.mockClear();
 
     const targetExitCode = runCli(
-      ["target", "set", "--tenant", "acme-beta", "--environment", "dev", "--json"],
+      [
+        "target",
+        "set",
+        "--tenant",
+        "acme-beta",
+        "--environment",
+        "dev",
+        "--json",
+      ],
       {
         cwd: repoDir,
         io: { stdout, stderr },
@@ -4506,7 +4884,9 @@ describe("cli analyze command", () => {
       cwd: repoDir,
       io: { stdout, stderr },
     });
-    const syncParsed = JSON.parse(stdout.mock.calls.map(([chunk]) => chunk).join(""));
+    const syncParsed = JSON.parse(
+      stdout.mock.calls.map(([chunk]) => chunk).join(""),
+    );
 
     expect(syncExitCode).toBe(0);
     expect(syncParsed.target).toEqual({
@@ -4552,7 +4932,9 @@ describe("cli analyze command", () => {
     const stdout = vi.fn();
     const stderr = vi.fn();
 
-    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), {
+      recursive: true,
+    });
     mkdirSync(join(repoDir, "src", "rn-mt", "tenants", "demo-app", "theme"), {
       recursive: true,
     });
@@ -4575,10 +4957,21 @@ describe("cli analyze command", () => {
       "export default { color: 'shared' };\n",
     );
     writeFileSync(
-      join(repoDir, "src", "rn-mt", "tenants", "demo-app", "theme", "branding.ts"),
+      join(
+        repoDir,
+        "src",
+        "rn-mt",
+        "tenants",
+        "demo-app",
+        "theme",
+        "branding.ts",
+      ),
       "export default { color: 'tenant' };\n",
     );
-    writeFileSync(join(repoDir, ".env.demo-app.dev"), "API_BASE_URL=https://demo.example.com\n");
+    writeFileSync(
+      join(repoDir, ".env.demo-app.dev"),
+      "API_BASE_URL=https://demo.example.com\n",
+    );
 
     const renameExitCode = runCli(
       ["tenant", "rename", "--from", "demo-app", "--to", "acme-beta", "--json"],
@@ -4599,19 +4992,35 @@ describe("cli analyze command", () => {
       displayName: "Demo App",
     });
     expect(
-      JSON.parse(readFileSync(join(repoDir, "rn-mt.config.json"), "utf8")).defaults,
+      JSON.parse(readFileSync(join(repoDir, "rn-mt.config.json"), "utf8"))
+        .defaults,
     ).toEqual({
       tenant: "acme-beta",
       environment: "dev",
     });
     expect(
-      existsSync(join(repoDir, "src", "rn-mt", "tenants", "acme-beta", "theme", "branding.ts")),
+      existsSync(
+        join(
+          repoDir,
+          "src",
+          "rn-mt",
+          "tenants",
+          "acme-beta",
+          "theme",
+          "branding.ts",
+        ),
+      ),
     ).toBe(true);
-    expect(existsSync(join(repoDir, "src", "rn-mt", "tenants", "demo-app"))).toBe(false);
+    expect(
+      existsSync(join(repoDir, "src", "rn-mt", "tenants", "demo-app")),
+    ).toBe(false);
     expect(existsSync(join(repoDir, ".env.acme-beta.dev"))).toBe(true);
     expect(existsSync(join(repoDir, ".env.demo-app.dev"))).toBe(false);
     expect(
-      readFileSync(join(repoDir, "src", "rn-mt", "current", "theme", "branding.ts"), "utf8"),
+      readFileSync(
+        join(repoDir, "src", "rn-mt", "current", "theme", "branding.ts"),
+        "utf8",
+      ),
     ).toContain("../../tenants/acme-beta/theme/branding");
 
     stdout.mockClear();
@@ -4621,7 +5030,9 @@ describe("cli analyze command", () => {
       cwd: repoDir,
       io: { stdout, stderr },
     });
-    const syncParsed = JSON.parse(stdout.mock.calls.map(([chunk]) => chunk).join(""));
+    const syncParsed = JSON.parse(
+      stdout.mock.calls.map(([chunk]) => chunk).join(""),
+    );
 
     expect(syncExitCode).toBe(0);
     expect(syncParsed.target).toEqual({
@@ -4700,12 +5111,18 @@ describe("cli analyze command", () => {
       join(repoDir, "src", "rn-mt", "tenants", "acme", "theme", "branding.ts"),
       "export default { tenantId: 'acme', displayName: 'Acme' };\n",
     );
-    writeFileSync(join(repoDir, ".env.acme.dev"), "API_BASE_URL=https://acme.example.com\n");
+    writeFileSync(
+      join(repoDir, ".env.acme.dev"),
+      "API_BASE_URL=https://acme.example.com\n",
+    );
 
-    const removeExitCode = runCli(["tenant", "remove", "--id", "acme", "--json"], {
-      cwd: repoDir,
-      io: { stdout, stderr },
-    });
+    const removeExitCode = runCli(
+      ["tenant", "remove", "--id", "acme", "--json"],
+      {
+        cwd: repoDir,
+        io: { stdout, stderr },
+      },
+    );
     const removeParsed = JSON.parse(
       stdout.mock.calls.map(([chunk]) => chunk).join(""),
     );
@@ -4717,11 +5134,14 @@ describe("cli analyze command", () => {
       displayName: "Acme",
     });
     expect(
-      JSON.parse(readFileSync(join(repoDir, "rn-mt.config.json"), "utf8")).tenants,
+      JSON.parse(readFileSync(join(repoDir, "rn-mt.config.json"), "utf8"))
+        .tenants,
     ).toEqual({
       "demo-app": { displayName: "Demo App" },
     });
-    expect(existsSync(join(repoDir, "src", "rn-mt", "tenants", "acme"))).toBe(false);
+    expect(existsSync(join(repoDir, "src", "rn-mt", "tenants", "acme"))).toBe(
+      false,
+    );
     expect(existsSync(join(repoDir, ".env.acme.dev"))).toBe(false);
 
     stdout.mockClear();
@@ -4731,7 +5151,9 @@ describe("cli analyze command", () => {
       cwd: repoDir,
       io: { stdout, stderr },
     });
-    const syncParsed = JSON.parse(stdout.mock.calls.map(([chunk]) => chunk).join(""));
+    const syncParsed = JSON.parse(
+      stdout.mock.calls.map(([chunk]) => chunk).join(""),
+    );
 
     expect(syncExitCode).toBe(0);
     expect(syncParsed.target).toEqual({
@@ -4746,7 +5168,9 @@ describe("cli analyze command", () => {
       cwd: repoDir,
       io: { stdout, stderr },
     });
-    const auditParsed = JSON.parse(stdout.mock.calls.map(([chunk]) => chunk).join(""));
+    const auditParsed = JSON.parse(
+      stdout.mock.calls.map(([chunk]) => chunk).join(""),
+    );
 
     expect(auditExitCode).toBe(1);
     expect(auditParsed.command).toBe("audit");
@@ -4803,10 +5227,16 @@ describe("cli analyze command", () => {
     const stderr = vi.fn();
 
     mkdirSync(join(repoDir, "android", "app"), { recursive: true });
-    mkdirSync(join(repoDir, "ios", "KeepNexus.xcodeproj", "xcshareddata", "xcschemes"), {
-      recursive: true,
-    });
-    writeFileSync(join(repoDir, "android", "app", "build.gradle"), "android {}\n");
+    mkdirSync(
+      join(repoDir, "ios", "KeepNexus.xcodeproj", "xcshareddata", "xcschemes"),
+      {
+        recursive: true,
+      },
+    );
+    writeFileSync(
+      join(repoDir, "android", "app", "build.gradle"),
+      "android {}\n",
+    );
     writeFileSync(
       join(repoDir, "android", "app", "rn-mt.generated.identity.gradle"),
       "// generated\n",
@@ -4815,7 +5245,10 @@ describe("cli analyze command", () => {
       join(repoDir, "android", "app", "rn-mt.generated.flavors.gradle"),
       "// generated\n",
     );
-    writeFileSync(join(repoDir, "ios", "rn-mt.generated.current.xcconfig"), "// generated\n");
+    writeFileSync(
+      join(repoDir, "ios", "rn-mt.generated.current.xcconfig"),
+      "// generated\n",
+    );
     writeFileSync(
       join(repoDir, "ios", "rn-mt.generated.demo-app-dev.xcconfig"),
       "// generated\n",
@@ -4850,7 +5283,9 @@ describe("cli analyze command", () => {
       cwd: repoDir,
       io: { stdout, stderr },
     });
-    const parsed = JSON.parse(stdout.mock.calls.map(([chunk]) => chunk).join(""));
+    const parsed = JSON.parse(
+      stdout.mock.calls.map(([chunk]) => chunk).join(""),
+    );
 
     expect(exitCode).toBe(0);
     expect(parsed.command).toBe("doctor");
@@ -4889,7 +5324,10 @@ describe("cli analyze command", () => {
         },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "Expo Fixture" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "Expo Fixture" } }),
+    );
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -4909,7 +5347,9 @@ describe("cli analyze command", () => {
       cwd: repoDir,
       io: { stdout, stderr },
     });
-    const parsed = JSON.parse(stdout.mock.calls.map(([chunk]) => chunk).join(""));
+    const parsed = JSON.parse(
+      stdout.mock.calls.map(([chunk]) => chunk).join(""),
+    );
 
     expect(exitCode).toBe(1);
     expect(parsed.command).toBe("doctor");
@@ -4947,8 +5387,14 @@ describe("cli analyze command", () => {
         dependencies: { expo: "~52.0.0" },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
-    writeFileSync(join(repoDir, "eas.json"), JSON.stringify({ cli: { version: ">= 1.0.0" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
+    writeFileSync(
+      join(repoDir, "eas.json"),
+      JSON.stringify({ cli: { version: ">= 1.0.0" } }),
+    );
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -4974,7 +5420,10 @@ describe("cli analyze command", () => {
       }),
     );
     mkdirSync(join(repoDir, ".github", "workflows"), { recursive: true });
-    writeFileSync(join(repoDir, ".github", "workflows", "release.yml"), "name: release\n");
+    writeFileSync(
+      join(repoDir, ".github", "workflows", "release.yml"),
+      "name: release\n",
+    );
     writeFileSync(
       join(repoDir, ".env.dev"),
       "API_BASE_URL=https://dev.example.com\nSENTRY_DSN=https://secret-dev\n",
@@ -5038,11 +5487,22 @@ describe("cli analyze command", () => {
       }),
     ).toBe(0);
 
-    mkdirSync(join(repoDir, "src", "rn-mt", "tenants", "fixture-app", "theme"), {
-      recursive: true,
-    });
+    mkdirSync(
+      join(repoDir, "src", "rn-mt", "tenants", "fixture-app", "theme"),
+      {
+        recursive: true,
+      },
+    );
     writeFileSync(
-      join(repoDir, "src", "rn-mt", "tenants", "fixture-app", "theme", "index.ts"),
+      join(
+        repoDir,
+        "src",
+        "rn-mt",
+        "tenants",
+        "fixture-app",
+        "theme",
+        "index.ts",
+      ),
       [
         'import logo from "../../../current/assets/logo.png";',
         "",
@@ -5057,14 +5517,22 @@ describe("cli analyze command", () => {
       runSubprocess(command, args, options) {
         if (command === "git" && args[0] === "init") {
           mkdirSync(join(options.cwd, ".git"), { recursive: true });
-          writeFileSync(join(options.cwd, ".git", "HEAD"), "ref: refs/heads/main\n");
+          writeFileSync(
+            join(options.cwd, ".git", "HEAD"),
+            "ref: refs/heads/main\n",
+          );
           return { status: 0 };
         }
 
-        return { status: 1, error: new Error(`Unexpected subprocess: ${command}`) };
+        return {
+          status: 1,
+          error: new Error(`Unexpected subprocess: ${command}`),
+        };
       },
     });
-    const parsed = JSON.parse(stdout.mock.calls.map(([chunk]) => chunk).join(""));
+    const parsed = JSON.parse(
+      stdout.mock.calls.map(([chunk]) => chunk).join(""),
+    );
 
     expect(exitCode).toBe(0);
     expect(parsed.command).toBe("handoff");
@@ -5100,7 +5568,9 @@ describe("cli analyze command", () => {
     );
     expect(parsed.sanitization).toEqual(
       expect.objectContaining({
-        generatedFiles: expect.arrayContaining([join(outputDir, ".env.dev.example")]),
+        generatedFiles: expect.arrayContaining([
+          join(outputDir, ".env.dev.example"),
+        ]),
         removedPaths: expect.arrayContaining([
           join(outputDir, ".github"),
           join(outputDir, "eas.json"),
@@ -5133,7 +5603,15 @@ describe("cli analyze command", () => {
           destinationPath: join(outputDir, "theme", "index.ts"),
         }),
         expect.objectContaining({
-          sourcePath: join(outputDir, "src", "rn-mt", "shared", "src", "config", "index.ts"),
+          sourcePath: join(
+            outputDir,
+            "src",
+            "rn-mt",
+            "shared",
+            "src",
+            "config",
+            "index.ts",
+          ),
           destinationPath: join(outputDir, "src", "config", "index.ts"),
         }),
       ]),
@@ -5177,10 +5655,12 @@ describe("cli analyze command", () => {
         "",
       ].join("\n"),
     );
-    expect(readFileSync(join(outputDir, "src", "config", "index.ts"), "utf8")).toBe(
-      "export default { apiBaseUrl: 'https://example.com' };\n",
+    expect(
+      readFileSync(join(outputDir, "src", "config", "index.ts"), "utf8"),
+    ).toBe("export default { apiBaseUrl: 'https://example.com' };\n");
+    expect(readFileSync(join(outputDir, "assets", "logo.png"), "utf8")).toBe(
+      "binary",
     );
-    expect(readFileSync(join(outputDir, "assets", "logo.png"), "utf8")).toBe("binary");
     expect(readFileSync(join(outputDir, "App.test.tsx"), "utf8")).toBe(
       [
         'import App from "./App";',
@@ -5193,7 +5673,9 @@ describe("cli analyze command", () => {
         "",
       ].join("\n"),
     );
-    const outputPackageJson = JSON.parse(readFileSync(join(outputDir, "package.json"), "utf8")) as {
+    const outputPackageJson = JSON.parse(
+      readFileSync(join(outputDir, "package.json"), "utf8"),
+    ) as {
       scripts?: Record<string, string>;
       dependencies?: Record<string, string>;
       devDependencies?: Record<string, string>;
@@ -5212,24 +5694,40 @@ describe("cli analyze command", () => {
     expect(outputPackageJson.scripts?.["rn-mt:sync"]).toBeUndefined();
     expect(outputPackageJson.scripts?.["rn-mt:start"]).toBeUndefined();
     expect(outputPackageJson.dependencies?.["@rn-mt/runtime"]).toBeUndefined();
-    expect(outputPackageJson.dependencies?.["@rn-mt/expo-plugin"]).toBeUndefined();
+    expect(
+      outputPackageJson.dependencies?.["@rn-mt/expo-plugin"],
+    ).toBeUndefined();
     expect(outputPackageJson.devDependencies?.["@rn-mt/cli"]).toBeUndefined();
-    expect(readFileSync(join(outputDir, "README.md"), "utf8")).toBe("# Fixture App\n");
-    expect(readFileSync(join(outputDir, ".env.dev.example"), "utf8")).toContain("API_BASE_URL=");
-    expect(readFileSync(join(outputDir, ".env.dev.example"), "utf8")).toContain("SENTRY_DSN=");
-    expect(readFileSync(join(outputDir, ".env.dev.example"), "utf8")).toContain("TENANT_ONLY=");
-    expect(readFileSync(join(outputDir, ".env.dev.example"), "utf8")).not.toContain(
-      "https://secret-dev",
+    expect(readFileSync(join(outputDir, "README.md"), "utf8")).toBe(
+      "# Fixture App\n",
     );
+    expect(readFileSync(join(outputDir, ".env.dev.example"), "utf8")).toContain(
+      "API_BASE_URL=",
+    );
+    expect(readFileSync(join(outputDir, ".env.dev.example"), "utf8")).toContain(
+      "SENTRY_DSN=",
+    );
+    expect(readFileSync(join(outputDir, ".env.dev.example"), "utf8")).toContain(
+      "TENANT_ONLY=",
+    );
+    expect(
+      readFileSync(join(outputDir, ".env.dev.example"), "utf8"),
+    ).not.toContain("https://secret-dev");
     expect(existsSync(join(outputDir, ".git", "HEAD"))).toBe(true);
     expect(existsSync(join(outputDir, ".github"))).toBe(false);
     expect(existsSync(join(outputDir, "eas.json"))).toBe(false);
     expect(existsSync(join(outputDir, ".env.dev"))).toBe(false);
     expect(existsSync(join(outputDir, ".env.fixture-app.dev"))).toBe(false);
     expect(existsSync(join(outputDir, "rn-mt.config.json"))).toBe(false);
-    expect(existsSync(join(outputDir, "rn-mt.generated.README.md"))).toBe(false);
-    expect(existsSync(join(outputDir, "rn-mt.generated.convert.ownership.json"))).toBe(false);
-    expect(existsSync(join(outputDir, "rn-mt.generated.reconstruction.json"))).toBe(false);
+    expect(existsSync(join(outputDir, "rn-mt.generated.README.md"))).toBe(
+      false,
+    );
+    expect(
+      existsSync(join(outputDir, "rn-mt.generated.convert.ownership.json")),
+    ).toBe(false);
+    expect(
+      existsSync(join(outputDir, "rn-mt.generated.reconstruction.json")),
+    ).toBe(false);
     expect(existsSync(join(outputDir, "src", "rn-mt"))).toBe(false);
     expect(stderr).not.toHaveBeenCalled();
   });
@@ -5252,8 +5750,14 @@ describe("cli analyze command", () => {
         dependencies: { expo: "~52.0.0" },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
-    writeFileSync(join(repoDir, "eas.json"), JSON.stringify({ cli: { version: ">= 1.0.0" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
+    writeFileSync(
+      join(repoDir, "eas.json"),
+      JSON.stringify({ cli: { version: ">= 1.0.0" } }),
+    );
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -5295,27 +5799,38 @@ describe("cli analyze command", () => {
       }),
     ).toBe(0);
 
-    const exitCode = runCli(["handoff", "--tenant", "fixture-app", "--zip", "--json"], {
-      cwd: repoDir,
-      io: { stdout, stderr },
-      runSubprocess(command, args, options) {
-        if (command === "git" && args[0] === "init") {
-          mkdirSync(join(options.cwd, ".git"), { recursive: true });
-          writeFileSync(join(options.cwd, ".git", "HEAD"), "ref: refs/heads/main\n");
-          return { status: 0 };
-        }
+    const exitCode = runCli(
+      ["handoff", "--tenant", "fixture-app", "--zip", "--json"],
+      {
+        cwd: repoDir,
+        io: { stdout, stderr },
+        runSubprocess(command, args, options) {
+          if (command === "git" && args[0] === "init") {
+            mkdirSync(join(options.cwd, ".git"), { recursive: true });
+            writeFileSync(
+              join(options.cwd, ".git", "HEAD"),
+              "ref: refs/heads/main\n",
+            );
+            return { status: 0 };
+          }
 
-        if (command === "zip") {
-          expect(args).toEqual(["-qr", archivePath, basename(outputDir)]);
-          expect(options.cwd).toBe(dirname(outputDir));
-          writeFileSync(archivePath, `zip:${basename(outputDir)}\n`);
-          return { status: 0 };
-        }
+          if (command === "zip") {
+            expect(args).toEqual(["-qr", archivePath, basename(outputDir)]);
+            expect(options.cwd).toBe(dirname(outputDir));
+            writeFileSync(archivePath, `zip:${basename(outputDir)}\n`);
+            return { status: 0 };
+          }
 
-        return { status: 1, error: new Error(`Unexpected subprocess: ${command}`) };
+          return {
+            status: 1,
+            error: new Error(`Unexpected subprocess: ${command}`),
+          };
+        },
       },
-    });
-    const parsed = JSON.parse(stdout.mock.calls.map(([chunk]) => chunk).join(""));
+    );
+    const parsed = JSON.parse(
+      stdout.mock.calls.map(([chunk]) => chunk).join(""),
+    );
 
     expect(exitCode).toBe(0);
     expect(parsed.command).toBe("handoff");
@@ -5331,8 +5846,12 @@ describe("cli analyze command", () => {
       created: true,
     });
     expect(existsSync(outputDir)).toBe(true);
-    expect(readFileSync(archivePath, "utf8")).toBe(`zip:${basename(outputDir)}\n`);
-    expect(readFileSync(join(outputDir, ".env.dev.example"), "utf8")).toContain("API_BASE_URL=");
+    expect(readFileSync(archivePath, "utf8")).toBe(
+      `zip:${basename(outputDir)}\n`,
+    );
+    expect(readFileSync(join(outputDir, ".env.dev.example"), "utf8")).toContain(
+      "API_BASE_URL=",
+    );
     expect(existsSync(join(outputDir, "rn-mt.config.json"))).toBe(false);
     expect(stderr).not.toHaveBeenCalled();
   });
@@ -5350,8 +5869,14 @@ describe("cli analyze command", () => {
         dependencies: { expo: "~52.0.0" },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
-    writeFileSync(join(repoDir, "eas.json"), JSON.stringify({ cli: { version: ">= 1.0.0" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
+    writeFileSync(
+      join(repoDir, "eas.json"),
+      JSON.stringify({ cli: { version: ">= 1.0.0" } }),
+    );
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -5366,7 +5891,10 @@ describe("cli analyze command", () => {
         },
       }),
     );
-    writeFileSync(join(repoDir, "App.tsx"), "export default function App() { return null; }\n");
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      "export default function App() { return null; }\n",
+    );
     writeFileSync(
       join(repoDir, "index.js"),
       "import { registerRootComponent } from 'expo';\nregisterRootComponent(App);\n",
@@ -5385,7 +5913,9 @@ describe("cli analyze command", () => {
       cwd: repoDir,
       io: { stdout, stderr },
     });
-    const parsed = JSON.parse(stdout.mock.calls.map(([chunk]) => chunk).join(""));
+    const parsed = JSON.parse(
+      stdout.mock.calls.map(([chunk]) => chunk).join(""),
+    );
 
     expect(exitCode).toBe(1);
     expect(parsed.command).toBe("handoff");
@@ -5423,8 +5953,14 @@ describe("cli analyze command", () => {
         dependencies: { expo: "~52.0.0" },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
-    writeFileSync(join(repoDir, "eas.json"), JSON.stringify({ cli: { version: ">= 1.0.0" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
+    writeFileSync(
+      join(repoDir, "eas.json"),
+      JSON.stringify({ cli: { version: ">= 1.0.0" } }),
+    );
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -5464,10 +6000,15 @@ describe("cli analyze command", () => {
       cwd: repoDir,
       io: { stdout, stderr },
       runSubprocess(command) {
-        return { status: 1, error: new Error(`Unexpected subprocess: ${command}`) };
+        return {
+          status: 1,
+          error: new Error(`Unexpected subprocess: ${command}`),
+        };
       },
     });
-    const parsed = JSON.parse(stdout.mock.calls.map(([chunk]) => chunk).join(""));
+    const parsed = JSON.parse(
+      stdout.mock.calls.map(([chunk]) => chunk).join(""),
+    );
 
     expect(exitCode).toBe(1);
     expect(parsed.command).toBe("handoff");
@@ -5487,7 +6028,9 @@ describe("cli analyze command", () => {
       }),
     ]);
     expect(existsSync(outputDir)).toBe(true);
-    expect(readFileSync(join(outputDir, "README.md"), "utf8")).toContain("Beta Corp");
+    expect(readFileSync(join(outputDir, "README.md"), "utf8")).toContain(
+      "Beta Corp",
+    );
     expect(existsSync(join(outputDir, ".git"))).toBe(false);
     expect(stderr).not.toHaveBeenCalled();
   });
@@ -5509,8 +6052,14 @@ describe("cli analyze command", () => {
         dependencies: { expo: "~52.0.0" },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
-    writeFileSync(join(repoDir, "eas.json"), JSON.stringify({ cli: { version: ">= 1.0.0" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
+    writeFileSync(
+      join(repoDir, "eas.json"),
+      JSON.stringify({ cli: { version: ">= 1.0.0" } }),
+    );
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -5525,7 +6074,10 @@ describe("cli analyze command", () => {
         },
       }),
     );
-    writeFileSync(join(repoDir, "App.tsx"), "export default function App() { return null; }\n");
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      "export default function App() { return null; }\n",
+    );
     writeFileSync(
       join(repoDir, "index.js"),
       "import { registerRootComponent } from 'expo';\nregisterRootComponent(App);\n",
@@ -5545,10 +6097,15 @@ describe("cli analyze command", () => {
       cwd: repoDir,
       io: { stdout, stderr },
       runSubprocess(command) {
-        return { status: 1, error: new Error(`Unexpected subprocess: ${command}`) };
+        return {
+          status: 1,
+          error: new Error(`Unexpected subprocess: ${command}`),
+        };
       },
     });
-    const parsed = JSON.parse(stdout.mock.calls.map(([chunk]) => chunk).join(""));
+    const parsed = JSON.parse(
+      stdout.mock.calls.map(([chunk]) => chunk).join(""),
+    );
 
     expect(exitCode).toBe(1);
     expect(parsed.command).toBe("handoff");
@@ -5561,7 +6118,9 @@ describe("cli analyze command", () => {
       replacedExisting: false,
       gitInitialized: false,
     });
-    expect(readFileSync(join(outputDir, "existing.txt"), "utf8")).toBe("keep me\n");
+    expect(readFileSync(join(outputDir, "existing.txt"), "utf8")).toBe(
+      "keep me\n",
+    );
     expect(stderr).not.toHaveBeenCalled();
   });
 
@@ -5582,8 +6141,14 @@ describe("cli analyze command", () => {
         dependencies: { expo: "~52.0.0" },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
-    writeFileSync(join(repoDir, "eas.json"), JSON.stringify({ cli: { version: ">= 1.0.0" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
+    writeFileSync(
+      join(repoDir, "eas.json"),
+      JSON.stringify({ cli: { version: ">= 1.0.0" } }),
+    );
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -5598,7 +6163,10 @@ describe("cli analyze command", () => {
         },
       }),
     );
-    writeFileSync(join(repoDir, "App.tsx"), "export default function App() { return null; }\n");
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      "export default function App() { return null; }\n",
+    );
     writeFileSync(
       join(repoDir, "index.js"),
       "import { registerRootComponent } from 'expo';\nregisterRootComponent(App);\n",
@@ -5614,20 +6182,31 @@ describe("cli analyze command", () => {
     mkdirSync(outputDir, { recursive: true });
     writeFileSync(join(outputDir, "existing.txt"), "stale\n");
 
-    const exitCode = runCli(["handoff", "--tenant", "fixture-app", "--force", "--json"], {
-      cwd: repoDir,
-      io: { stdout, stderr },
-      runSubprocess(command, args, options) {
-        if (command === "git" && args[0] === "init") {
-          mkdirSync(join(options.cwd, ".git"), { recursive: true });
-          writeFileSync(join(options.cwd, ".git", "HEAD"), "ref: refs/heads/main\n");
-          return { status: 0 };
-        }
+    const exitCode = runCli(
+      ["handoff", "--tenant", "fixture-app", "--force", "--json"],
+      {
+        cwd: repoDir,
+        io: { stdout, stderr },
+        runSubprocess(command, args, options) {
+          if (command === "git" && args[0] === "init") {
+            mkdirSync(join(options.cwd, ".git"), { recursive: true });
+            writeFileSync(
+              join(options.cwd, ".git", "HEAD"),
+              "ref: refs/heads/main\n",
+            );
+            return { status: 0 };
+          }
 
-        return { status: 1, error: new Error(`Unexpected subprocess: ${command}`) };
+          return {
+            status: 1,
+            error: new Error(`Unexpected subprocess: ${command}`),
+          };
+        },
       },
-    });
-    const parsed = JSON.parse(stdout.mock.calls.map(([chunk]) => chunk).join(""));
+    );
+    const parsed = JSON.parse(
+      stdout.mock.calls.map(([chunk]) => chunk).join(""),
+    );
 
     expect(exitCode).toBe(0);
     expect(parsed.status).toBe("initialized");

@@ -1,3 +1,6 @@
+/**
+ * Type definitions for the handoff module.
+ */
 import type { RnMtAuditResult } from "../audit/types";
 
 export type RnMtHandoffPreflightCheckStatus = "ok" | "blocked";

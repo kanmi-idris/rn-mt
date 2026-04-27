@@ -1,3 +1,6 @@
+/**
+ * Type definitions for the sync module.
+ */
 import type {
   RnMtEnvSource,
   RnMtManifest,

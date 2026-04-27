@@ -1,3 +1,6 @@
+/**
+ * Public entrypoint for the override module.
+ */
 export { RnMtOverrideModule } from "./override-module";
 
 export type {

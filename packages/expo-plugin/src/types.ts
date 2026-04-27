@@ -1,0 +1,21 @@
+/**
+ * Defines the narrow type surface shared by the Expo bridge helpers.
+ */
+import type { RnMtExpoTargetContext } from "@rn-mt/shared";
+
+export interface ExpoPluginBridgeContract {
+  targetContextSource: "rn-mt-state";
+  computedAuthority: "app.config.ts";
+  preservesAppJsonLayering: true;
+}
+
+export interface ExpoConfigLike {
+  name?: string;
+  slug?: string;
+  icon?: string;
+  ios?: Record<string, unknown>;
+  android?: Record<string, unknown>;
+  extra?: Record<string, unknown>;
+}
+
+export type { RnMtExpoTargetContext };

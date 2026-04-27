@@ -1,3 +1,6 @@
+/**
+ * Loads and validates subprocess environment input for target execution.
+ */
 import { join } from "node:path";
 
 import type { RnMtManifest, RnMtResolvedTarget } from "../manifest/types";
@@ -7,16 +10,20 @@ import { RnMtWorkspace } from "../workspace";
 import type { RnMtEnvSource } from "../manifest/types";
 import type { RnMtLoadedEnvFile, RnMtSubprocessEnvResult } from "./types";
 
+/**
+ * Parses a raw dotenv value while preserving the limited quoting behavior rn-mt
+ * supports.
+ */
 function parseDotEnvValue(rawValue: string) {
   const trimmedValue = rawValue.trim();
 
   if (
-    (trimmedValue.startsWith("\"") && trimmedValue.endsWith("\"")) ||
+    (trimmedValue.startsWith('"') && trimmedValue.endsWith('"')) ||
     (trimmedValue.startsWith("'") && trimmedValue.endsWith("'"))
   ) {
     const innerValue = trimmedValue.slice(1, -1);
 
-    if (trimmedValue.startsWith("\"")) {
+    if (trimmedValue.startsWith('"')) {
       return innerValue.replace(/\\n/g, "\n");
     }
 
@@ -26,6 +33,9 @@ function parseDotEnvValue(rawValue: string) {
   return trimmedValue;
 }
 
+/**
+ * Parses dotenv file contents into the env map used for command execution.
+ */
 export function parseDotEnvContents(contents: string): RnMtEnvSource {
   const parsedEnv: RnMtEnvSource = {};
 
@@ -58,6 +68,10 @@ export function parseDotEnvContents(contents: string): RnMtEnvSource {
   return parsedEnv;
 }
 
+/**
+ * Loads canonical env files for the selected target and validates the env that
+ * rn-mt run will pass to the subprocess.
+ */
 export function createSubprocessEnv(
   workspace: RnMtWorkspace,
   manifest: RnMtManifest,
@@ -82,7 +96,10 @@ export function createSubprocessEnv(
       scope: "environment",
     },
     {
-      path: join(workspace.rootDir, `.env.${target.tenant}.${target.environment}`),
+      path: join(
+        workspace.rootDir,
+        `.env.${target.tenant}.${target.environment}`,
+      ),
       scope: "tenant-environment",
     },
   ];
@@ -92,7 +109,10 @@ export function createSubprocessEnv(
       continue;
     }
 
-    Object.assign(mergedEnv, parseDotEnvContents(workspace.readText(descriptor.path)));
+    Object.assign(
+      mergedEnv,
+      parseDotEnvContents(workspace.readText(descriptor.path)),
+    );
     loadedFiles.push(descriptor);
   }
 

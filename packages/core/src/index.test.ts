@@ -1,5 +1,12 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -61,7 +68,10 @@ function parseManifest(manifestContents: string) {
   return manifest.parseManifest(manifestContents);
 }
 
-function createCurrentImportsCodemodResult(rootDir: string, _options?: unknown) {
+function createCurrentImportsCodemodResult(
+  rootDir: string,
+  _options?: unknown,
+) {
   return new RnMtConvertModule({
     workspace: getWorkspace(rootDir),
   }).planCurrentImportsCodemod();
@@ -299,7 +309,8 @@ function createHandoffIsolationAuditResult(
 function createInitialManifest(report: RnMtBaselineAnalyzeReport) {
   const packageJsonPath = join(report.repo.rootDir, "package.json");
   const packageName = existsSync(packageJsonPath)
-    ? (JSON.parse(readFileSync(packageJsonPath, "utf8")) as { name?: string }).name
+    ? (JSON.parse(readFileSync(packageJsonPath, "utf8")) as { name?: string })
+        .name
     : undefined;
 
   return manifest.createInitialManifest(report, {
@@ -394,7 +405,10 @@ describe("createBaselineAnalyzeReport", () => {
   it("falls back to lockfile detection when packageManager field is missing", () => {
     const repoDir = createTempRepo("rn-mt-core-lockfile-");
 
-    writeFileSync(join(repoDir, "package.json"), JSON.stringify({ name: "fixture-app" }));
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({ name: "fixture-app" }),
+    );
     writeFileSync(join(repoDir, "yarn.lock"), "# lockfile");
 
     const report = createBaselineAnalyzeReport(repoDir);
@@ -455,7 +469,10 @@ describe("createBaselineAnalyzeReport", () => {
         },
       }),
     );
-    writeFileSync(join(appRoot, "app.json"), JSON.stringify({ expo: { name: "Mobile App" } }));
+    writeFileSync(
+      join(appRoot, "app.json"),
+      JSON.stringify({ expo: { name: "Mobile App" } }),
+    );
 
     const report = createBaselineAnalyzeReport(appRoot, {
       scopeToProvidedRoot: true,
@@ -473,7 +490,10 @@ describe("createBaselineAnalyzeReport", () => {
   it("detects TypeScript host repos from tsconfig.json", () => {
     const repoDir = createTempRepo("rn-mt-core-typescript-host-");
 
-    writeFileSync(join(repoDir, "package.json"), JSON.stringify({ name: "fixture-app" }));
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({ name: "fixture-app" }),
+    );
     writeFileSync(
       join(repoDir, "tsconfig.json"),
       JSON.stringify({ compilerOptions: { strict: true } }),
@@ -497,7 +517,10 @@ describe("createBaselineAnalyzeReport", () => {
         dependencies: { expo: "~52.0.0" },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "ExpoFixture" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "ExpoFixture" } }),
+    );
 
     const report = createBaselineAnalyzeReport(repoDir);
 
@@ -567,7 +590,10 @@ describe("createBaselineAnalyzeReport", () => {
         dependencies: { expo: "~52.0.0" },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "ExpoFixture" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "ExpoFixture" } }),
+    );
 
     const report = createBaselineAnalyzeReport(repoDir);
 
@@ -706,9 +732,13 @@ describe("formatBaselineAnalyzeReport", () => {
     expect(output).toContain("Support tier: near-supported");
     expect(output).toContain("Support reasons: ambiguous-repo-shape");
     expect(output).toContain("Host language: javascript");
-    expect(output).toContain("Host evidence: defaulted to javascript host files");
+    expect(output).toContain(
+      "Host evidence: defaulted to javascript host files",
+    );
     expect(output).toContain("App candidates: expo-managed, expo-prebuild");
-    expect(output).toContain("App evidence: package.json includes expo dependency");
+    expect(output).toContain(
+      "App evidence: package.json includes expo dependency",
+    );
     expect(output).toContain("App evidence: app.config.ts present");
     expect(output).toContain(
       "App remediation: Run analyze interactively and choose the intended Expo repo shape.",
@@ -727,7 +757,10 @@ describe("init helpers", () => {
         dependencies: { expo: "~52.0.0" },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "DemoApp" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "DemoApp" } }),
+    );
 
     const report = createBaselineAnalyzeReport(repoDir);
     const manifest = createInitialManifest(report);
@@ -758,7 +791,10 @@ describe("init helpers", () => {
   it("blocks manifest init for unsupported repo shapes", () => {
     const repoDir = createTempRepo("rn-mt-core-init-unsupported-");
 
-    writeFileSync(join(repoDir, "package.json"), JSON.stringify({ name: "plain-app" }));
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({ name: "plain-app" }),
+    );
 
     const report = createBaselineAnalyzeReport(repoDir);
 
@@ -778,7 +814,10 @@ describe("init helpers", () => {
         dependencies: { expo: "~52.0.0" },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "DemoApp" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "DemoApp" } }),
+    );
 
     const result = createInitResult(createBaselineAnalyzeReport(repoDir));
 
@@ -809,7 +848,10 @@ describe("init helpers", () => {
         dependencies: { expo: "~52.0.0" },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "DemoApp" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "DemoApp" } }),
+    );
     writeFileSync(
       join(repoDir, "tsconfig.json"),
       JSON.stringify({ compilerOptions: { strict: true } }),
@@ -877,9 +919,9 @@ describe("target set helpers", () => {
       }),
     );
 
-    expect(validateTargetSelection(manifest, { tenant: "acme", environment: "dev" })).toBe(
-      "Unknown tenant: acme",
-    );
+    expect(
+      validateTargetSelection(manifest, { tenant: "acme", environment: "dev" }),
+    ).toBe("Unknown tenant: acme");
     expect(
       validateTargetSelection(manifest, {
         tenant: "demo-app",
@@ -908,10 +950,14 @@ describe("tenant add helpers", () => {
     const result = createTenantAddResult("/tmp/demo-app", manifest, {
       id: "acme-beta",
     });
-    const targetResult = createTargetSetResult("/tmp/demo-app", result.manifest, {
-      tenant: "acme-beta",
-      environment: "dev",
-    });
+    const targetResult = createTargetSetResult(
+      "/tmp/demo-app",
+      result.manifest,
+      {
+        tenant: "acme-beta",
+        environment: "dev",
+      },
+    );
 
     expect(result.manifest.tenants["acme-beta"]).toEqual({
       displayName: "Acme Beta",
@@ -961,7 +1007,9 @@ describe("tenant rename helpers", () => {
   it("renames a tenant, rewrites current facades for the default tenant, and updates tenant-scoped paths", () => {
     const repoDir = createTempRepo("rn-mt-core-tenant-rename-");
 
-    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), {
+      recursive: true,
+    });
     mkdirSync(join(repoDir, "src", "rn-mt", "tenants", "demo-app", "theme"), {
       recursive: true,
     });
@@ -970,10 +1018,21 @@ describe("tenant rename helpers", () => {
       "export default { color: 'shared' };\n",
     );
     writeFileSync(
-      join(repoDir, "src", "rn-mt", "tenants", "demo-app", "theme", "branding.ts"),
+      join(
+        repoDir,
+        "src",
+        "rn-mt",
+        "tenants",
+        "demo-app",
+        "theme",
+        "branding.ts",
+      ),
       "export default { color: 'tenant' };\n",
     );
-    writeFileSync(join(repoDir, ".env.demo-app.dev"), "API_BASE_URL=https://demo.example.com\n");
+    writeFileSync(
+      join(repoDir, ".env.demo-app.dev"),
+      "API_BASE_URL=https://demo.example.com\n",
+    );
 
     const manifest = parseManifest(
       JSON.stringify({
@@ -1024,9 +1083,18 @@ describe("tenant rename helpers", () => {
     expect(result.generatedFiles).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          path: join(repoDir, "src", "rn-mt", "current", "theme", "branding.ts"),
+          path: join(
+            repoDir,
+            "src",
+            "rn-mt",
+            "current",
+            "theme",
+            "branding.ts",
+          ),
           kind: "current-facade",
-          contents: expect.stringContaining("../../tenants/acme-beta/theme/branding"),
+          contents: expect.stringContaining(
+            "../../tenants/acme-beta/theme/branding",
+          ),
         }),
       ]),
     );
@@ -1061,8 +1129,13 @@ describe("tenant remove helpers", () => {
   it("removes a non-default tenant from the manifest and collects tenant-scoped paths", () => {
     const repoDir = createTempRepo("rn-mt-core-tenant-remove-");
 
-    mkdirSync(join(repoDir, "src", "rn-mt", "tenants", "acme"), { recursive: true });
-    writeFileSync(join(repoDir, ".env.acme.dev"), "API_BASE_URL=https://acme.example.com\n");
+    mkdirSync(join(repoDir, "src", "rn-mt", "tenants", "acme"), {
+      recursive: true,
+    });
+    writeFileSync(
+      join(repoDir, ".env.acme.dev"),
+      "API_BASE_URL=https://acme.example.com\n",
+    );
 
     const manifest = parseManifest(
       JSON.stringify({
@@ -1097,10 +1170,12 @@ describe("tenant remove helpers", () => {
       join(repoDir, ".env.acme.dev"),
       join(repoDir, "src", "rn-mt", "tenants", "acme"),
     ]);
-    expect(validateTargetSelection(result.manifest, {
-      tenant: "demo-app",
-      environment: "dev",
-    })).toBeNull();
+    expect(
+      validateTargetSelection(result.manifest, {
+        tenant: "demo-app",
+        environment: "dev",
+      }),
+    ).toBeNull();
   });
 
   it("rejects removing the current default tenant", () => {
@@ -1123,7 +1198,9 @@ describe("tenant remove helpers", () => {
       createTenantRemoveResult("/tmp/demo-app", manifest, {
         id: "demo-app",
       }),
-    ).toThrow("Cannot remove default tenant: demo-app. Select a different default target first.");
+    ).toThrow(
+      "Cannot remove default tenant: demo-app. Select a different default target first.",
+    );
   });
 });
 
@@ -1132,10 +1209,16 @@ describe("doctor helpers", () => {
     const repoDir = createTempRepo("rn-mt-core-doctor-positive-");
 
     mkdirSync(join(repoDir, "android", "app"), { recursive: true });
-    mkdirSync(join(repoDir, "ios", "KeepNexus.xcodeproj", "xcshareddata", "xcschemes"), {
-      recursive: true,
-    });
-    writeFileSync(join(repoDir, "android", "app", "build.gradle"), "android {}\n");
+    mkdirSync(
+      join(repoDir, "ios", "KeepNexus.xcodeproj", "xcshareddata", "xcschemes"),
+      {
+        recursive: true,
+      },
+    );
+    writeFileSync(
+      join(repoDir, "android", "app", "build.gradle"),
+      "android {}\n",
+    );
     writeFileSync(
       join(repoDir, "android", "app", "rn-mt.generated.identity.gradle"),
       "// generated\n",
@@ -1144,7 +1227,10 @@ describe("doctor helpers", () => {
       join(repoDir, "android", "app", "rn-mt.generated.flavors.gradle"),
       "// generated\n",
     );
-    writeFileSync(join(repoDir, "ios", "rn-mt.generated.current.xcconfig"), "// generated\n");
+    writeFileSync(
+      join(repoDir, "ios", "rn-mt.generated.current.xcconfig"),
+      "// generated\n",
+    );
     writeFileSync(
       join(repoDir, "ios", "rn-mt.generated.demo-app-dev.xcconfig"),
       "// generated\n",
@@ -1206,7 +1292,10 @@ describe("doctor helpers", () => {
         },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "Expo Fixture" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "Expo Fixture" } }),
+    );
 
     const manifest = parseManifest(
       JSON.stringify({
@@ -1250,9 +1339,18 @@ describe("handoff preflight helpers", () => {
         dependencies: { expo: "~52.0.0" },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
-    writeFileSync(join(repoDir, "eas.json"), JSON.stringify({ cli: { version: ">= 1.0.0" } }));
-    writeFileSync(join(repoDir, "App.tsx"), "export default function App() { return null; }\n");
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
+    writeFileSync(
+      join(repoDir, "eas.json"),
+      JSON.stringify({ cli: { version: ">= 1.0.0" } }),
+    );
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      "export default function App() { return null; }\n",
+    );
     writeFileSync(
       join(repoDir, "index.js"),
       "import { registerRootComponent } from 'expo';\nregisterRootComponent(App);\n",
@@ -1265,10 +1363,15 @@ describe("handoff preflight helpers", () => {
       writeFileSync(file.path, file.contents);
     }
 
-    const result = createHandoffPreflightResult(repoDir, manifest, "fixture-app", {
-      fileExists: existsSync,
-      readFile: (path: string) => readFileSync(path, "utf8"),
-    });
+    const result = createHandoffPreflightResult(
+      repoDir,
+      manifest,
+      "fixture-app",
+      {
+        fileExists: existsSync,
+        readFile: (path: string) => readFileSync(path, "utf8"),
+      },
+    );
 
     expect(result.status).toBe("ready");
     expect(result.tenant).toEqual({
@@ -1286,7 +1389,9 @@ describe("handoff preflight helpers", () => {
         code: "converted-repo",
         status: "ok",
         summary: "Converted repo ownership metadata is present.",
-        details: [expect.stringContaining("rn-mt.generated.convert.ownership.json")],
+        details: [
+          expect.stringContaining("rn-mt.generated.convert.ownership.json"),
+        ],
       },
       {
         code: "reconstruction-metadata",
@@ -1319,9 +1424,18 @@ describe("handoff preflight helpers", () => {
         dependencies: { expo: "~52.0.0" },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
-    writeFileSync(join(repoDir, "eas.json"), JSON.stringify({ cli: { version: ">= 1.0.0" } }));
-    writeFileSync(join(repoDir, "App.tsx"), "export default function App() { return null; }\n");
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
+    writeFileSync(
+      join(repoDir, "eas.json"),
+      JSON.stringify({ cli: { version: ">= 1.0.0" } }),
+    );
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      "export default function App() { return null; }\n",
+    );
     writeFileSync(
       join(repoDir, "index.js"),
       "import { registerRootComponent } from 'expo';\nregisterRootComponent(App);\n",
@@ -1336,10 +1450,15 @@ describe("handoff preflight helpers", () => {
       writeFileSync(file.path, file.contents);
     }
 
-    const result = createHandoffPreflightResult(repoDir, manifest, "fixture-app", {
-      fileExists: existsSync,
-      readFile: (path: string) => readFileSync(path, "utf8"),
-    });
+    const result = createHandoffPreflightResult(
+      repoDir,
+      manifest,
+      "fixture-app",
+      {
+        fileExists: existsSync,
+        readFile: (path: string) => readFileSync(path, "utf8"),
+      },
+    );
 
     expect(result.status).toBe("blocked");
     expect(result.checks).toEqual(
@@ -1374,9 +1493,15 @@ describe("handoff flatten helpers", () => {
         dependencies: { expo: "~52.0.0" },
       }),
     );
-    writeFileSync(join(repoDir, "rn-mt.config.json"), JSON.stringify(manifest, null, 2));
+    writeFileSync(
+      join(repoDir, "rn-mt.config.json"),
+      JSON.stringify(manifest, null, 2),
+    );
     writeFileSync(join(repoDir, "README.md"), "# Fixture App\n");
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
     writeFileSync(
       join(repoDir, "App.tsx"),
       [
@@ -1430,7 +1555,11 @@ describe("handoff flatten helpers", () => {
       mkdirSync(dirname(file.destinationPath), { recursive: true });
       writeFileSync(file.destinationPath, file.contents);
 
-      if (file.removeSourcePath && file.sourcePath !== file.destinationPath && existsSync(file.sourcePath)) {
+      if (
+        file.removeSourcePath &&
+        file.sourcePath !== file.destinationPath &&
+        existsSync(file.sourcePath)
+      ) {
         rmSync(file.sourcePath, { force: true });
       }
     }
@@ -1478,7 +1607,15 @@ describe("handoff flatten helpers", () => {
           ].join("\n"),
         }),
         expect.objectContaining({
-          sourcePath: join(repoDir, "src", "rn-mt", "tenants", "acme", "theme", "index.ts"),
+          sourcePath: join(
+            repoDir,
+            "src",
+            "rn-mt",
+            "tenants",
+            "acme",
+            "theme",
+            "index.ts",
+          ),
           destinationPath: join(repoDir, "theme", "index.ts"),
           contents: [
             'import logo from "../assets/logo.png";',
@@ -1488,12 +1625,27 @@ describe("handoff flatten helpers", () => {
           ].join("\n"),
         }),
         expect.objectContaining({
-          sourcePath: join(repoDir, "src", "rn-mt", "shared", "src", "config", "index.ts"),
+          sourcePath: join(
+            repoDir,
+            "src",
+            "rn-mt",
+            "shared",
+            "src",
+            "config",
+            "index.ts",
+          ),
           destinationPath: join(repoDir, "src", "config", "index.ts"),
           contents: "export default { apiBaseUrl: 'https://example.com' };\n",
         }),
         expect.objectContaining({
-          sourcePath: join(repoDir, "src", "rn-mt", "shared", "assets", "logo.png"),
+          sourcePath: join(
+            repoDir,
+            "src",
+            "rn-mt",
+            "shared",
+            "assets",
+            "logo.png",
+          ),
           destinationPath: join(repoDir, "assets", "logo.png"),
           contents: "binary",
         }),
@@ -1528,9 +1680,15 @@ describe("handoff cleanup helpers", () => {
         dependencies: { expo: "~52.0.0" },
       }),
     );
-    writeFileSync(join(repoDir, "rn-mt.config.json"), JSON.stringify(manifest, null, 2));
+    writeFileSync(
+      join(repoDir, "rn-mt.config.json"),
+      JSON.stringify(manifest, null, 2),
+    );
     writeFileSync(join(repoDir, "README.md"), "# Fixture App\n");
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
     writeFileSync(
       join(repoDir, "App.tsx"),
       [
@@ -1584,7 +1742,11 @@ describe("handoff cleanup helpers", () => {
       mkdirSync(dirname(file.destinationPath), { recursive: true });
       writeFileSync(file.destinationPath, file.contents);
 
-      if (file.removeSourcePath && file.sourcePath !== file.destinationPath && existsSync(file.sourcePath)) {
+      if (
+        file.removeSourcePath &&
+        file.sourcePath !== file.destinationPath &&
+        existsSync(file.sourcePath)
+      ) {
         rmSync(file.sourcePath, { force: true });
       }
     }
@@ -1609,10 +1771,15 @@ describe("handoff cleanup helpers", () => {
     mkdirSync(join(repoDir, ".rn-mt"), { recursive: true });
     writeFileSync(join(repoDir, ".rn-mt", "hook-state.json"), "{}\n");
 
-    const flattenResult = createHandoffFlattenResult(repoDir, manifest, "fixture-app", {
-      fileExists: existsSync,
-      readFile: (path: string) => readFileSync(path, "utf8"),
-    });
+    const flattenResult = createHandoffFlattenResult(
+      repoDir,
+      manifest,
+      "fixture-app",
+      {
+        fileExists: existsSync,
+        readFile: (path: string) => readFileSync(path, "utf8"),
+      },
+    );
 
     for (const file of flattenResult.restoredFiles) {
       mkdirSync(dirname(file.destinationPath), { recursive: true });
@@ -1631,7 +1798,9 @@ describe("handoff cleanup helpers", () => {
     );
 
     expect(packageJsonFile?.contents).toContain('"start": "expo start"');
-    expect(packageJsonFile?.contents).toContain('"android": "expo start --android"');
+    expect(packageJsonFile?.contents).toContain(
+      '"android": "expo start --android"',
+    );
     expect(packageJsonFile?.contents).toContain('"ios": "expo start --ios"');
     expect(packageJsonFile?.contents).not.toContain("rn-mt:");
     expect(packageJsonFile?.contents).not.toContain("@rn-mt/runtime");
@@ -1687,7 +1856,10 @@ describe("handoff sanitization helpers", () => {
       join(repoDir, ".github", "workflows", "release.yml"),
       "name: release\n",
     );
-    writeFileSync(join(repoDir, "eas.json"), JSON.stringify({ cli: { version: ">= 1.0.0" } }));
+    writeFileSync(
+      join(repoDir, "eas.json"),
+      JSON.stringify({ cli: { version: ">= 1.0.0" } }),
+    );
     writeFileSync(
       join(repoDir, ".env.dev"),
       "API_BASE_URL=https://dev.example.com\nSENTRY_DSN=https://secret-dev\n",
@@ -1701,10 +1873,15 @@ describe("handoff sanitization helpers", () => {
       "API_BASE_URL=https://prod.example.com\n",
     );
 
-    const result = createHandoffSanitizationResult(repoDir, manifest, "fixture-app", {
-      fileExists: existsSync,
-      readFile: (path: string) => readFileSync(path, "utf8"),
-    });
+    const result = createHandoffSanitizationResult(
+      repoDir,
+      manifest,
+      "fixture-app",
+      {
+        fileExists: existsSync,
+        readFile: (path: string) => readFileSync(path, "utf8"),
+      },
+    );
 
     expect(result.reviewRequired).toBe(true);
     expect(result.generatedFiles).toEqual(
@@ -1719,12 +1896,21 @@ describe("handoff sanitization helpers", () => {
         }),
       ]),
     );
-    expect(result.generatedFiles.find((file) => file.path === join(repoDir, ".env.dev.example"))?.contents)
-      .toContain("TENANT_ONLY=");
-    expect(result.generatedFiles.find((file) => file.path === join(repoDir, ".env.dev.example"))?.contents)
-      .toContain("# SENTRY_DSN (secret)");
-    expect(result.generatedFiles.find((file) => file.path === join(repoDir, ".env.dev.example"))?.contents)
-      .not.toContain("https://secret-dev");
+    expect(
+      result.generatedFiles.find(
+        (file) => file.path === join(repoDir, ".env.dev.example"),
+      )?.contents,
+    ).toContain("TENANT_ONLY=");
+    expect(
+      result.generatedFiles.find(
+        (file) => file.path === join(repoDir, ".env.dev.example"),
+      )?.contents,
+    ).toContain("# SENTRY_DSN (secret)");
+    expect(
+      result.generatedFiles.find(
+        (file) => file.path === join(repoDir, ".env.dev.example"),
+      )?.contents,
+    ).not.toContain("https://secret-dev");
     expect(result.removedPaths).toEqual(
       expect.arrayContaining([
         join(repoDir, ".github"),
@@ -1761,13 +1947,24 @@ describe("handoff isolation audit helpers", () => {
       }),
     );
 
-    writeFileSync(join(repoDir, "README.md"), "# Acme App\nInternal note: Beta Corp migration pending.\n");
-    writeFileSync(join(repoDir, "package.json"), JSON.stringify({ name: "acme-app" }));
+    writeFileSync(
+      join(repoDir, "README.md"),
+      "# Acme App\nInternal note: Beta Corp migration pending.\n",
+    );
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({ name: "acme-app" }),
+    );
 
-    const result = createHandoffIsolationAuditResult(repoDir, manifest, "acme", {
-      fileExists: existsSync,
-      readFile: (path: string) => readFileSync(path, "utf8"),
-    });
+    const result = createHandoffIsolationAuditResult(
+      repoDir,
+      manifest,
+      "acme",
+      {
+        fileExists: existsSync,
+        readFile: (path: string) => readFileSync(path, "utf8"),
+      },
+    );
 
     expect(result.findings).toEqual([
       expect.objectContaining({
@@ -1778,7 +1975,9 @@ describe("handoff isolation audit helpers", () => {
       }),
     ]);
     expect(result.findings[0]?.evidence).toEqual(
-      expect.arrayContaining(["Found tenant display name Beta Corp: Beta Corp"]),
+      expect.arrayContaining([
+        "Found tenant display name Beta Corp: Beta Corp",
+      ]),
     );
   });
 });
@@ -1795,7 +1994,10 @@ describe("codemod helpers", () => {
         dependencies: { expo: "~52.0.0" },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
     writeFileSync(
       join(repoDir, "App.tsx"),
       [
@@ -1815,7 +2017,10 @@ describe("codemod helpers", () => {
     mkdirSync(join(repoDir, "theme"), { recursive: true });
     mkdirSync(join(repoDir, "src", "config"), { recursive: true });
     writeFileSync(join(repoDir, "theme", "index.ts"), "export default {};\n");
-    writeFileSync(join(repoDir, "src", "config", "index.ts"), "export default {};\n");
+    writeFileSync(
+      join(repoDir, "src", "config", "index.ts"),
+      "export default {};\n",
+    );
 
     const convertResult = createConvertResult(repoDir, manifest);
 
@@ -1823,7 +2028,11 @@ describe("codemod helpers", () => {
       mkdirSync(dirname(file.destinationPath), { recursive: true });
       writeFileSync(file.destinationPath, file.contents);
 
-      if (file.removeSourcePath && file.sourcePath !== file.destinationPath && existsSync(file.sourcePath)) {
+      if (
+        file.removeSourcePath &&
+        file.sourcePath !== file.destinationPath &&
+        existsSync(file.sourcePath)
+      ) {
         rmSync(file.sourcePath, { force: true });
       }
     }
@@ -1856,7 +2065,9 @@ describe("codemod helpers", () => {
       expect.objectContaining({
         path: join(repoDir, "src", "rn-mt", "shared", "App.tsx"),
         before: expect.stringContaining('import theme from "./theme/index";'),
-        after: expect.stringContaining('import theme from "../current/theme/index";'),
+        after: expect.stringContaining(
+          'import theme from "../current/theme/index";',
+        ),
       }),
     ]);
   });
@@ -1883,7 +2094,9 @@ describe("manifest parsing", () => {
           },
         }),
       ),
-    ).toThrow("Invalid envSchema.apiBaseUrl.source: expected a non-empty string.");
+    ).toThrow(
+      "Invalid envSchema.apiBaseUrl.source: expected a non-empty string.",
+    );
   });
 });
 
@@ -1899,8 +2112,14 @@ describe("convert helpers", () => {
       }),
     );
     writeFileSync(join(repoDir, "README.md"), "# Fixture App\n");
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
-    writeFileSync(join(repoDir, "App.tsx"), "export default function App() { return null; }\n");
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      "export default function App() { return null; }\n",
+    );
     writeFileSync(
       join(repoDir, "index.js"),
       "import { registerRootComponent } from 'expo';\nregisterRootComponent(App);\n",
@@ -1924,7 +2143,9 @@ describe("convert helpers", () => {
         expect.objectContaining({
           sourcePath: join(repoDir, "package.json"),
           destinationPath: join(repoDir, "package.json"),
-          contents: expect.stringContaining('"rn-mt:start": "rn-mt run -- expo start"'),
+          contents: expect.stringContaining(
+            '"rn-mt:start": "rn-mt run -- expo start"',
+          ),
         }),
       ]),
     );
@@ -1972,7 +2193,7 @@ describe("convert helpers", () => {
         {
           path: join(repoDir, "src", "rn-mt", "current", "runtime.ts"),
           kind: "current-facade",
-          contents: expect.stringContaining('createRuntimeAccessors'),
+          contents: expect.stringContaining("createRuntimeAccessors"),
         },
         {
           path: join(repoDir, "rn-mt.generated.convert.ownership.json"),
@@ -1987,7 +2208,9 @@ describe("convert helpers", () => {
         {
           path: join(repoDir, "rn-mt.generated.README.md"),
           kind: "repo-readme",
-          contents: expect.stringContaining("# rn-mt Ownership and Handoff Guide"),
+          contents: expect.stringContaining(
+            "# rn-mt Ownership and Handoff Guide",
+          ),
         },
       ]),
     );
@@ -2026,7 +2249,10 @@ describe("convert helpers", () => {
       }),
     );
     writeFileSync(join(repoDir, "README.md"), "# Fixture App\n");
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
     writeFileSync(
       join(repoDir, "App.tsx"),
       [
@@ -2152,16 +2378,26 @@ describe("convert helpers", () => {
         },
       }),
     );
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
-    writeFileSync(join(repoDir, "App.tsx"), "export default function App() { return null; }\n");
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      "export default function App() { return null; }\n",
+    );
 
     const result = createConvertResult(repoDir, createConvertManifest(repoDir));
     const packageJsonFile = result.movedFiles.find(
       (file) => file.sourcePath === join(repoDir, "package.json"),
     );
 
-    expect(packageJsonFile?.destinationPath).toBe(join(repoDir, "package.json"));
-    expect(packageJsonFile?.contents).toContain('"start": "rn-mt run -- expo start --clear"');
+    expect(packageJsonFile?.destinationPath).toBe(
+      join(repoDir, "package.json"),
+    );
+    expect(packageJsonFile?.contents).toContain(
+      '"start": "rn-mt run -- expo start --clear"',
+    );
     expect(packageJsonFile?.contents).toContain(
       '"android": "rn-mt run --platform android -- expo run:android --variant preview"',
     );
@@ -2197,7 +2433,9 @@ describe("convert helpers", () => {
       '"postinstall": "rn-mt hook postinstall"',
     );
     expect(packageJsonFile?.contents).toContain('"@rn-mt/runtime": "0.1.0"');
-    expect(packageJsonFile?.contents).toContain('"@rn-mt/expo-plugin": "0.1.0"');
+    expect(packageJsonFile?.contents).toContain(
+      '"@rn-mt/expo-plugin": "0.1.0"',
+    );
     expect(packageJsonFile?.contents).toContain('"@rn-mt/cli": "0.1.0"');
     expect(packageJsonFile?.contents).toContain('"test": "vitest"');
     expect(result.packageManager).toEqual({
@@ -2237,9 +2475,18 @@ describe("convert helpers", () => {
         },
       }),
     );
-    writeFileSync(join(repoDir, "README.md"), "# Fixture App\n\nExisting repo notes.\n");
-    writeFileSync(join(repoDir, "app.json"), JSON.stringify({ expo: { name: "FixtureApp" } }));
-    writeFileSync(join(repoDir, "App.tsx"), "export default function App() { return null; }\n");
+    writeFileSync(
+      join(repoDir, "README.md"),
+      "# Fixture App\n\nExisting repo notes.\n",
+    );
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      "export default function App() { return null; }\n",
+    );
 
     const result = createConvertResult(repoDir, createConvertManifest(repoDir));
     const readmeFile = result.movedFiles.find(
@@ -2269,7 +2516,10 @@ describe("convert helpers", () => {
     writeFileSync(join(repoDir, "yarn.lock"), "# yarn lockfile");
     mkdirSync(join(repoDir, "ios"), { recursive: true });
     mkdirSync(join(repoDir, "android"), { recursive: true });
-    writeFileSync(join(repoDir, "App.tsx"), "export default function App() { return null; }\n");
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      "export default function App() { return null; }\n",
+    );
 
     const result = createConvertResult(repoDir, createConvertManifest(repoDir));
     const packageJsonFile = result.movedFiles.find(
@@ -2313,7 +2563,9 @@ describe("convert helpers", () => {
       ].join("\n"),
     );
 
-    expect(() => createConvertResult(repoDir, createConvertManifest(repoDir))).toThrow(
+    expect(() =>
+      createConvertResult(repoDir, createConvertManifest(repoDir)),
+    ).toThrow(
       "Convert has already been applied to this repo. Root entry wrappers are already CLI-owned.",
     );
   });
@@ -2370,17 +2622,37 @@ describe("convert helpers", () => {
       expect.arrayContaining([
         expect.objectContaining({
           sourcePath: join(repoDir, "theme", "index.ts"),
-          destinationPath: join(repoDir, "src", "rn-mt", "shared", "theme", "index.ts"),
+          destinationPath: join(
+            repoDir,
+            "src",
+            "rn-mt",
+            "shared",
+            "theme",
+            "index.ts",
+          ),
           removeSourcePath: true,
         }),
         expect.objectContaining({
           sourcePath: join(repoDir, "assets", "logo.png"),
-          destinationPath: join(repoDir, "src", "rn-mt", "shared", "assets", "logo.png"),
+          destinationPath: join(
+            repoDir,
+            "src",
+            "rn-mt",
+            "shared",
+            "assets",
+            "logo.png",
+          ),
           removeSourcePath: true,
         }),
         expect.objectContaining({
           sourcePath: join(repoDir, "App.test.tsx"),
-          destinationPath: join(repoDir, "src", "rn-mt", "shared", "App.test.tsx"),
+          destinationPath: join(
+            repoDir,
+            "src",
+            "rn-mt",
+            "shared",
+            "App.test.tsx",
+          ),
           removeSourcePath: true,
         }),
         expect.objectContaining({
@@ -2438,9 +2710,11 @@ describe("convert helpers", () => {
       file.path.endsWith("/src/rn-mt/current/App.tsx"),
     );
 
-    expect(appShared?.contents).toContain('import theme from "../current/theme/index";');
-    expect(themeCurrent?.contents).toContain('../../tenants/acme/theme/index');
-    expect(appCurrent?.contents).toContain('../shared/App');
+    expect(appShared?.contents).toContain(
+      'import theme from "../current/theme/index";',
+    );
+    expect(themeCurrent?.contents).toContain("../../tenants/acme/theme/index");
+    expect(appCurrent?.contents).toContain("../shared/App");
   });
 
   it("creates an optional host config bridge for an explicit config module path", () => {
@@ -2463,10 +2737,16 @@ describe("convert helpers", () => {
       "export default { apiBaseUrl: 'https://example.com' };\n",
     );
 
-    const result = createConvertResult(repoDir, createConvertManifest(repoDir), {
-      bridgeConfigModulePath: "src/config/index.ts",
-    });
-    const bridgeFile = result.generatedFiles.find((file) => file.kind === "host-config-bridge");
+    const result = createConvertResult(
+      repoDir,
+      createConvertManifest(repoDir),
+      {
+        bridgeConfigModulePath: "src/config/index.ts",
+      },
+    );
+    const bridgeFile = result.generatedFiles.find(
+      (file) => file.kind === "host-config-bridge",
+    );
     const movedConfigFile = result.movedFiles.find(
       (file) => file.sourcePath === join(repoDir, "src", "config", "index.ts"),
     );
@@ -2498,8 +2778,9 @@ describe("convert helpers", () => {
     });
     expect(
       JSON.parse(
-        result.generatedFiles.find((file) => file.kind === "reconstruction-metadata")
-          ?.contents ?? "null",
+        result.generatedFiles.find(
+          (file) => file.kind === "reconstruction-metadata",
+        )?.contents ?? "null",
       ),
     ).toEqual(
       expect.objectContaining({
@@ -2519,7 +2800,10 @@ describe("convert helpers", () => {
     const repoDir = createTempRepo("rn-mt-core-convert-bridge-unsupported-");
 
     mkdirSync(join(repoDir, "theme"), { recursive: true });
-    writeFileSync(join(repoDir, "App.tsx"), "export default function App() { return null; }\n");
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      "export default function App() { return null; }\n",
+    );
     writeFileSync(
       join(repoDir, "theme", "index.ts"),
       "export default { color: 'blue' };\n",
@@ -2535,7 +2819,9 @@ describe("convert helpers", () => {
   it("creates a tenant override by copying a shared file into the mirrored tenant path", () => {
     const repoDir = createTempRepo("rn-mt-core-override-create-");
 
-    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), {
+      recursive: true,
+    });
     writeFileSync(
       join(repoDir, "src", "rn-mt", "shared", "theme", "index.ts"),
       "export default { color: 'shared' };\n",
@@ -2577,7 +2863,9 @@ describe("convert helpers", () => {
   it("rejects override create when the mirrored tenant file already exists", () => {
     const repoDir = createTempRepo("rn-mt-core-override-create-existing-");
 
-    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), {
+      recursive: true,
+    });
     mkdirSync(join(repoDir, "src", "rn-mt", "tenants", "acme", "theme"), {
       recursive: true,
     });
@@ -2604,7 +2892,9 @@ describe("convert helpers", () => {
   it("removes a tenant override and repoints the current facade back to shared", () => {
     const repoDir = createTempRepo("rn-mt-core-override-remove-");
 
-    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), {
+      recursive: true,
+    });
     mkdirSync(join(repoDir, "src", "rn-mt", "tenants", "acme", "theme"), {
       recursive: true,
     });
@@ -2643,7 +2933,9 @@ describe("convert helpers", () => {
   it("rejects override remove when the tenant override does not exist", () => {
     const repoDir = createTempRepo("rn-mt-core-override-remove-missing-");
 
-    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), {
+      recursive: true,
+    });
     writeFileSync(
       join(repoDir, "src", "rn-mt", "shared", "theme", "index.ts"),
       "export default { color: 'shared' };\n",
@@ -2665,7 +2957,9 @@ describe("audit helpers", () => {
   it("emits an override-candidate finding when a shared file embeds the default tenant branding", () => {
     const repoDir = createTempRepo("rn-mt-core-audit-override-candidate-");
 
-    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), {
+      recursive: true,
+    });
     writeFileSync(
       join(repoDir, "src", "rn-mt", "shared", "theme", "branding.ts"),
       [
@@ -2698,8 +2992,12 @@ describe("audit helpers", () => {
   it("ignores test files and non-triggering shared files during override-candidate audit", () => {
     const repoDir = createTempRepo("rn-mt-core-audit-ignored-");
 
-    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "__tests__"), { recursive: true });
-    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "__tests__"), {
+      recursive: true,
+    });
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "theme"), {
+      recursive: true,
+    });
     writeFileSync(
       join(repoDir, "src", "rn-mt", "shared", "__tests__", "branding.test.ts"),
       "describe('Acme branding', () => expect(true).toBe(true));\n",
@@ -2794,10 +3092,7 @@ describe("subprocess env helpers", () => {
 
     writeFileSync(
       join(repoDir, ".env.dev"),
-      [
-        "API_BASE_URL=https://dev.example.com",
-        "",
-      ].join("\n"),
+      ["API_BASE_URL=https://dev.example.com", ""].join("\n"),
     );
 
     const manifest = parseManifest(
@@ -2992,9 +3287,7 @@ describe("sync helpers", () => {
           dev: {
             displayName: "Development",
             routes: {
-              add: [
-                { id: "debug", path: "/debug", screen: "DebugScreen" },
-              ],
+              add: [{ id: "debug", path: "/debug", screen: "DebugScreen" }],
             },
           },
         },
@@ -3034,13 +3327,19 @@ describe("sync helpers", () => {
         },
         features: [
           { id: "chat", module: "ChatFeature", enabledByFlag: "chatEnabled" },
-          { id: "payments", module: "PaymentsFeature", enabledByFlag: "paymentsEnabled" },
+          {
+            id: "payments",
+            module: "PaymentsFeature",
+            enabledByFlag: "paymentsEnabled",
+          },
         ],
-        menus: [
-          { id: "home-menu", label: "Home", actionId: "open-home" },
-        ],
+        menus: [{ id: "home-menu", label: "Home", actionId: "open-home" }],
         actions: [
-          { id: "legacy-support", label: "Call Support", handler: "callSupport" },
+          {
+            id: "legacy-support",
+            label: "Call Support",
+            handler: "callSupport",
+          },
           { id: "pay", label: "Pay", handler: "startPay" },
         ],
         defaults: { tenant: "acme", environment: "dev" },
@@ -3058,9 +3357,7 @@ describe("sync helpers", () => {
           dev: {
             displayName: "Development",
             features: {
-              add: [
-                { id: "debug-tools", module: "DebugToolsFeature" },
-              ],
+              add: [{ id: "debug-tools", module: "DebugToolsFeature" }],
             },
           },
         },
@@ -3084,7 +3381,11 @@ describe("sync helpers", () => {
     });
 
     expect(result.runtime.features).toEqual([
-      { id: "payments", module: "PaymentsFeature", enabledByFlag: "paymentsEnabled" },
+      {
+        id: "payments",
+        module: "PaymentsFeature",
+        enabledByFlag: "paymentsEnabled",
+      },
       { id: "debug-tools", module: "DebugToolsFeature" },
     ]);
     expect(result.runtime.menus).toEqual([
@@ -3127,16 +3428,22 @@ describe("sync helpers", () => {
       environment: "dev",
       platform: "ios",
     });
-    const derivedAsset = result.generatedFiles.find((file) => file.kind === "derived-asset");
+    const derivedAsset = result.generatedFiles.find(
+      (file) => file.kind === "derived-asset",
+    );
     const fingerprintMetadata = result.generatedFiles.find(
       (file) => file.kind === "asset-fingerprint-metadata",
     );
 
-    expect(derivedAsset?.path).toBe(join(repoDir, "ios", "rn-mt.generated.icon.dev.svg"));
+    expect(derivedAsset?.path).toBe(
+      join(repoDir, "ios", "rn-mt.generated.icon.dev.svg"),
+    );
     expect(derivedAsset?.contents).toContain(">DEV<");
     expect(derivedAsset?.contents).toContain('href="../assets/icon.png"');
     expect(derivedAsset?.contents).toContain("fingerprint:");
-    expect(fingerprintMetadata?.contents).toContain("rn-mt.generated.icon.dev.svg");
+    expect(fingerprintMetadata?.contents).toContain(
+      "rn-mt.generated.icon.dev.svg",
+    );
 
     writeFileSync(iconPath, "icon-v2");
 
@@ -3155,14 +3462,20 @@ describe("sync helpers", () => {
   it("reuses existing derived asset contents when stored fingerprints still match", () => {
     const repoDir = createTempRepo("rn-mt-core-derived-assets-reuse-");
     const iconPath = join(repoDir, "assets", "icon.png");
-    const derivedAssetPath = join(repoDir, "ios", "rn-mt.generated.icon.dev.svg");
+    const derivedAssetPath = join(
+      repoDir,
+      "ios",
+      "rn-mt.generated.icon.dev.svg",
+    );
 
     mkdirSync(join(repoDir, "assets"), { recursive: true });
     mkdirSync(join(repoDir, "ios"), { recursive: true });
     writeFileSync(iconPath, "icon-v1");
     writeFileSync(derivedAssetPath, "cached-derived-asset\n");
 
-    const sourceFingerprint = createHash("sha256").update("icon-v1").digest("hex");
+    const sourceFingerprint = createHash("sha256")
+      .update("icon-v1")
+      .digest("hex");
     writeFileSync(
       join(repoDir, "rn-mt.generated.asset-fingerprints.json"),
       JSON.stringify(
@@ -3209,7 +3522,9 @@ describe("sync helpers", () => {
       environment: "dev",
       platform: "ios",
     });
-    const derivedAsset = result.generatedFiles.find((file) => file.kind === "derived-asset");
+    const derivedAsset = result.generatedFiles.find(
+      (file) => file.kind === "derived-asset",
+    );
 
     expect(derivedAsset?.contents).toBe("cached-derived-asset\n");
   });
@@ -3246,9 +3561,13 @@ describe("sync helpers", () => {
       environment: "prod",
       platform: "ios",
     });
-    const derivedAsset = result.generatedFiles.find((file) => file.kind === "derived-asset");
+    const derivedAsset = result.generatedFiles.find(
+      (file) => file.kind === "derived-asset",
+    );
 
-    expect(derivedAsset?.path).toBe(join(repoDir, "ios", "rn-mt.generated.icon.prod.svg"));
+    expect(derivedAsset?.path).toBe(
+      join(repoDir, "ios", "rn-mt.generated.icon.prod.svg"),
+    );
     expect(derivedAsset?.contents).toContain('href="../assets/icon.png"');
     expect(derivedAsset?.contents).not.toContain(">PROD<");
     expect(derivedAsset?.contents).not.toContain('fill="#f59e0b"');
@@ -3297,19 +3616,28 @@ describe("sync helpers", () => {
       (file) => file.kind === "expo-target-context",
     );
 
-    expect(expoTargetContext?.path).toBe(join(repoDir, "rn-mt.generated.expo.js"));
+    expect(expoTargetContext?.path).toBe(
+      join(repoDir, "rn-mt.generated.expo.js"),
+    );
     expect(expoTargetContext?.contents).toContain('"tenant": "acme"');
     expect(expoTargetContext?.contents).toContain('"environment": "dev"');
     expect(expoTargetContext?.contents).toContain('"platform": "ios"');
-    expect(expoTargetContext?.contents).toContain('"runtimeConfigPath": "./rn-mt.generated.runtime.json"');
-    expect(expoTargetContext?.contents).toContain('"iconPath": "./ios/rn-mt.generated.icon.dev.svg"');
+    expect(expoTargetContext?.contents).toContain(
+      '"runtimeConfigPath": "./rn-mt.generated.runtime.json"',
+    );
+    expect(expoTargetContext?.contents).toContain(
+      '"iconPath": "./ios/rn-mt.generated.icon.dev.svg"',
+    );
   });
 
   it("emits Android tenant and environment flavor dimensions for bare RN fixtures", () => {
     const repoDir = createTempRepo("rn-mt-core-android-flavors-");
 
     mkdirSync(join(repoDir, "android", "app"), { recursive: true });
-    writeFileSync(join(repoDir, "android", "app", "build.gradle"), "android {}\n");
+    writeFileSync(
+      join(repoDir, "android", "app", "build.gradle"),
+      "android {}\n",
+    );
 
     const manifest = parseManifest(
       JSON.stringify({
@@ -3346,18 +3674,30 @@ describe("sync helpers", () => {
       (file) => file.kind === "android-flavor-config",
     );
 
-    expect(flavorConfig?.path).toBe(join(repoDir, "android", "app", "rn-mt.generated.flavors.gradle"));
-    expect(flavorConfig?.contents).toContain('flavorDimensions "tenant", "environment"');
+    expect(flavorConfig?.path).toBe(
+      join(repoDir, "android", "app", "rn-mt.generated.flavors.gradle"),
+    );
+    expect(flavorConfig?.contents).toContain(
+      'flavorDimensions "tenant", "environment"',
+    );
     expect(flavorConfig?.contents).toContain("demoApp {");
-    expect(flavorConfig?.contents).toContain('resValue "string", "RN_MT_TENANT_ID", "demo-app"');
+    expect(flavorConfig?.contents).toContain(
+      'resValue "string", "RN_MT_TENANT_ID", "demo-app"',
+    );
     expect(flavorConfig?.contents).toContain("whiteLabel {");
     expect(flavorConfig?.contents).toContain("dev {");
     expect(flavorConfig?.contents).toContain('applicationIdSuffix ".dev"');
     expect(flavorConfig?.contents).toContain("prod {");
     expect(flavorConfig?.contents).not.toContain('applicationIdSuffix ".prod"');
-    expect(flavorConfig?.contents).toContain("// Selected target: demo-app/staging/android");
-    expect(flavorConfig?.contents).toContain("// Selected variant: demoAppStaging");
-    expect(flavorConfig?.contents).toContain("// Selected applicationId: com.keep.nexus.staging");
+    expect(flavorConfig?.contents).toContain(
+      "// Selected target: demo-app/staging/android",
+    );
+    expect(flavorConfig?.contents).toContain(
+      "// Selected variant: demoAppStaging",
+    );
+    expect(flavorConfig?.contents).toContain(
+      "// Selected applicationId: com.keep.nexus.staging",
+    );
   });
 
   it("emits iOS tenant-environment schemes and xcconfig includes for bare RN fixtures", () => {
@@ -3393,12 +3733,17 @@ describe("sync helpers", () => {
       environment: "staging",
       platform: "ios",
     });
-    const schemeFile = result.generatedFiles.find((file) => file.kind === "ios-scheme");
+    const schemeFile = result.generatedFiles.find(
+      (file) => file.kind === "ios-scheme",
+    );
     const currentXcconfig = result.generatedFiles.find(
-      (file) => file.path === join(repoDir, "ios", "rn-mt.generated.current.xcconfig"),
+      (file) =>
+        file.path === join(repoDir, "ios", "rn-mt.generated.current.xcconfig"),
     );
     const targetXcconfig = result.generatedFiles.find(
-      (file) => file.path === join(repoDir, "ios", "rn-mt.generated.demo-app-staging.xcconfig"),
+      (file) =>
+        file.path ===
+        join(repoDir, "ios", "rn-mt.generated.demo-app-staging.xcconfig"),
     );
 
     expect(schemeFile?.path).toBe(
@@ -3411,16 +3756,24 @@ describe("sync helpers", () => {
         "DemoApp-Staging.xcscheme",
       ),
     );
-    expect(schemeFile?.contents).toContain("Selected target: demo-app/staging/ios");
-    expect(schemeFile?.contents).toContain("xcconfig include: rn-mt.generated.current.xcconfig");
+    expect(schemeFile?.contents).toContain(
+      "Selected target: demo-app/staging/ios",
+    );
+    expect(schemeFile?.contents).toContain(
+      "xcconfig include: rn-mt.generated.current.xcconfig",
+    );
     expect(currentXcconfig?.contents).toContain(
       '#include "rn-mt.generated.demo-app-staging.xcconfig"',
     );
-    expect(targetXcconfig?.contents).toContain("PRODUCT_BUNDLE_IDENTIFIER = com.keep.nexus.staging");
+    expect(targetXcconfig?.contents).toContain(
+      "PRODUCT_BUNDLE_IDENTIFIER = com.keep.nexus.staging",
+    );
     expect(targetXcconfig?.contents).toContain(
       'INFOPLIST_KEY_CFBundleDisplayName = "Keep Nexus (Staging)"',
     );
-    expect(targetXcconfig?.contents).toContain('RN_MT_DISPLAY_NAME = "Keep Nexus (Staging)"');
+    expect(targetXcconfig?.contents).toContain(
+      'RN_MT_DISPLAY_NAME = "Keep Nexus (Staging)"',
+    );
   });
 
   it("materializes derived development identity across bare RN Android and iOS outputs", () => {
@@ -3428,7 +3781,10 @@ describe("sync helpers", () => {
 
     mkdirSync(join(repoDir, "android", "app"), { recursive: true });
     mkdirSync(join(repoDir, "ios", "KeepNexus.xcodeproj"), { recursive: true });
-    writeFileSync(join(repoDir, "android", "app", "build.gradle"), "android {}\n");
+    writeFileSync(
+      join(repoDir, "android", "app", "build.gradle"),
+      "android {}\n",
+    );
 
     const manifest = parseManifest(
       JSON.stringify({
@@ -3468,14 +3824,20 @@ describe("sync helpers", () => {
       (file) => file.kind === "android-native-identity",
     );
     const iosXcconfig = iosResult.generatedFiles.find(
-      (file) => file.path === join(repoDir, "ios", "rn-mt.generated.demo-app-dev.xcconfig"),
+      (file) =>
+        file.path ===
+        join(repoDir, "ios", "rn-mt.generated.demo-app-dev.xcconfig"),
     );
 
-    expect(androidIdentity?.contents).toContain('applicationId "com.keep.nexus.dev"');
+    expect(androidIdentity?.contents).toContain(
+      'applicationId "com.keep.nexus.dev"',
+    );
     expect(androidIdentity?.contents).toContain(
       'resValue "string", "app_name", "Keep Nexus (Dev)"',
     );
-    expect(iosXcconfig?.contents).toContain("PRODUCT_BUNDLE_IDENTIFIER = com.keep.nexus.dev");
+    expect(iosXcconfig?.contents).toContain(
+      "PRODUCT_BUNDLE_IDENTIFIER = com.keep.nexus.dev",
+    );
     expect(iosXcconfig?.contents).toContain(
       'INFOPLIST_KEY_CFBundleDisplayName = "Keep Nexus (Dev)"',
     );
@@ -3486,7 +3848,10 @@ describe("sync helpers", () => {
 
     mkdirSync(join(repoDir, "android", "app"), { recursive: true });
     mkdirSync(join(repoDir, "ios", "KeepNexus.xcodeproj"), { recursive: true });
-    writeFileSync(join(repoDir, "android", "app", "build.gradle"), "android {}\n");
+    writeFileSync(
+      join(repoDir, "android", "app", "build.gradle"),
+      "android {}\n",
+    );
 
     const manifest = parseManifest(
       JSON.stringify({
@@ -3526,10 +3891,14 @@ describe("sync helpers", () => {
       (file) => file.kind === "android-native-identity",
     );
     const iosXcconfig = iosResult.generatedFiles.find(
-      (file) => file.path === join(repoDir, "ios", "rn-mt.generated.demo-app-staging.xcconfig"),
+      (file) =>
+        file.path ===
+        join(repoDir, "ios", "rn-mt.generated.demo-app-staging.xcconfig"),
     );
 
-    expect(androidIdentity?.contents).toContain('applicationId "com.keep.nexus.staging"');
+    expect(androidIdentity?.contents).toContain(
+      'applicationId "com.keep.nexus.staging"',
+    );
     expect(androidIdentity?.contents).toContain(
       'resValue "string", "app_name", "Keep Nexus (Staging)"',
     );
@@ -3546,7 +3915,10 @@ describe("sync helpers", () => {
 
     mkdirSync(join(repoDir, "android", "app"), { recursive: true });
     mkdirSync(join(repoDir, "ios", "KeepNexus.xcodeproj"), { recursive: true });
-    writeFileSync(join(repoDir, "android", "app", "build.gradle"), "android {}\n");
+    writeFileSync(
+      join(repoDir, "android", "app", "build.gradle"),
+      "android {}\n",
+    );
 
     const manifest = parseManifest(
       JSON.stringify({
@@ -3586,12 +3958,20 @@ describe("sync helpers", () => {
       (file) => file.kind === "android-native-identity",
     );
     const iosXcconfig = iosResult.generatedFiles.find(
-      (file) => file.path === join(repoDir, "ios", "rn-mt.generated.demo-app-prod.xcconfig"),
+      (file) =>
+        file.path ===
+        join(repoDir, "ios", "rn-mt.generated.demo-app-prod.xcconfig"),
     );
 
-    expect(androidIdentity?.contents).toContain('applicationId "com.keep.nexus"');
-    expect(androidIdentity?.contents).toContain('resValue "string", "app_name", "Keep Nexus"');
-    expect(iosXcconfig?.contents).toContain("PRODUCT_BUNDLE_IDENTIFIER = com.keep.nexus");
+    expect(androidIdentity?.contents).toContain(
+      'applicationId "com.keep.nexus"',
+    );
+    expect(androidIdentity?.contents).toContain(
+      'resValue "string", "app_name", "Keep Nexus"',
+    );
+    expect(iosXcconfig?.contents).toContain(
+      "PRODUCT_BUNDLE_IDENTIFIER = com.keep.nexus",
+    );
     expect(iosXcconfig?.contents).toContain(
       'INFOPLIST_KEY_CFBundleDisplayName = "Keep Nexus"',
     );
@@ -3602,7 +3982,10 @@ describe("sync helpers", () => {
 
     mkdirSync(join(repoDir, "android", "app"), { recursive: true });
     mkdirSync(join(repoDir, "ios", "KeepNexus.xcodeproj"), { recursive: true });
-    writeFileSync(join(repoDir, "android", "app", "build.gradle"), "android {}\n");
+    writeFileSync(
+      join(repoDir, "android", "app", "build.gradle"),
+      "android {}\n",
+    );
 
     const manifest = parseManifest(
       JSON.stringify({
@@ -3654,7 +4037,9 @@ describe("sync helpers", () => {
       (file) => file.kind === "android-native-identity",
     );
     const iosXcconfig = iosResult.generatedFiles.find(
-      (file) => file.path === join(repoDir, "ios", "rn-mt.generated.demo-app-staging.xcconfig"),
+      (file) =>
+        file.path ===
+        join(repoDir, "ios", "rn-mt.generated.demo-app-staging.xcconfig"),
     );
 
     expect(androidResult.runtime.config).toMatchObject({
@@ -3667,7 +4052,9 @@ describe("sync helpers", () => {
         },
       },
     });
-    expect(androidIdentity?.contents).toContain('applicationId "com.demo.android.staging"');
+    expect(androidIdentity?.contents).toContain(
+      'applicationId "com.demo.android.staging"',
+    );
     expect(androidIdentity?.contents).toContain(
       'resValue "string", "app_name", "Keep Nexus (Staging)"',
     );
@@ -4131,12 +4518,17 @@ describe("sync helpers", () => {
       }),
     );
 
-    const result = createSyncResult("/tmp/demo-app", manifest, manifest.defaults, {
-      env: {
-        API_BASE_URL: "https://api.example.com",
-        API_SECRET: "super-secret-token",
+    const result = createSyncResult(
+      "/tmp/demo-app",
+      manifest,
+      manifest.defaults,
+      {
+        env: {
+          API_BASE_URL: "https://api.example.com",
+          API_SECRET: "super-secret-token",
+        },
       },
-    });
+    );
     const runtimeArtifact = result.generatedFiles.find(
       (file) => file.kind === "runtime-artifact",
     );

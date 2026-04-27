@@ -1,3 +1,6 @@
+/**
+ * Public entrypoint for the analyze module.
+ */
 export { RnMtAnalyzeModule } from "./analyze-module";
 
 export type {

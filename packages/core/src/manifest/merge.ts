@@ -1,3 +1,6 @@
+/**
+ * Applies deterministic manifest merge behavior across config layers.
+ */
 import type {
   RnMtManifest,
   RnMtManifestResolution,
@@ -8,10 +11,20 @@ import type {
 
 import { resolveStaticRegistry } from "./registry";
 
-export function isPlainObject(value: unknown): value is Record<string, unknown> {
+/**
+ * Returns true when a value can participate in rn-mt's JSON-like deep-merge
+ * rules.
+ */
+export function isPlainObject(
+  value: unknown,
+): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/**
+ * Deep-merges one layer value into another using deterministic manifest merge
+ * semantics.
+ */
 function mergeLayerValue(base: unknown, incoming: unknown): unknown {
   if (Array.isArray(incoming)) {
     return [...incoming];
@@ -31,6 +44,9 @@ function mergeLayerValue(base: unknown, incoming: unknown): unknown {
   return incoming;
 }
 
+/**
+ * Applies layer merge semantics to two config-like records.
+ */
 export function mergeLayerRecord(
   base: Record<string, unknown> | undefined,
   incoming: Record<string, unknown> | undefined,
@@ -42,6 +58,10 @@ export function mergeLayerRecord(
   return mergeLayerValue(base ?? {}, incoming) as Record<string, unknown>;
 }
 
+/**
+ * Produces the supported manifest combination keys for a resolved target in
+ * lookup order.
+ */
 export function getCombinationKeys(target: RnMtResolvedTarget) {
   if (!target.platform) {
     return [
@@ -60,18 +80,28 @@ export function getCombinationKeys(target: RnMtResolvedTarget) {
   ];
 }
 
+/**
+ * Resolves the config, flag, and asset layers that apply to the selected
+ * target.
+ */
 export function resolveManifestLayers(
   manifest: RnMtManifest,
   target: RnMtResolvedTarget,
 ): RnMtManifestResolution {
   const environment = manifest.environments[target.environment];
   const tenant = manifest.tenants[target.tenant];
-  const platform = target.platform ? manifest.platforms?.[target.platform] : undefined;
+  const platform = target.platform
+    ? manifest.platforms?.[target.platform]
+    : undefined;
   const combinationEntry = getCombinationKeys(target)
     .map((key) => ({ key, layer: manifest.combinations?.[key] }))
     .find((entry) => entry.layer);
   const combination = combinationEntry?.layer;
-  const appliedLayers = ["base", `environment:${target.environment}`, `tenant:${target.tenant}`];
+  const appliedLayers = [
+    "base",
+    `environment:${target.environment}`,
+    `tenant:${target.tenant}`,
+  ];
 
   if (target.platform) {
     appliedLayers.push(`platform:${target.platform}`);
@@ -116,6 +146,9 @@ export function resolveManifestLayers(
   };
 }
 
+/**
+ * Formats a slug-like value into a readable title for derived identity fields.
+ */
 export function toTitleCase(value: string) {
   return value
     .split(/[-_\s]+/)
@@ -124,6 +157,9 @@ export function toTitleCase(value: string) {
     .join(" ");
 }
 
+/**
+ * Reads a nested string value from a JSON-like record.
+ */
 export function getStringRecordValue(
   source: Record<string, unknown> | undefined,
   path: string[],
@@ -141,6 +177,10 @@ export function getStringRecordValue(
   return typeof current === "string" ? current : null;
 }
 
+/**
+ * Writes a nested string value into a mutable JSON-like record, creating
+ * intermediate objects as needed.
+ */
 export function setStringRecordValue(
   source: Record<string, unknown>,
   path: string[],
@@ -165,10 +205,18 @@ export function setStringRecordValue(
   }
 }
 
+/**
+ * Creates a defensive deep clone of a JSON-like record before derived values
+ * are written into it.
+ */
 export function cloneJsonRecord(source: Record<string, unknown>) {
   return JSON.parse(JSON.stringify(source)) as Record<string, unknown>;
 }
 
+/**
+ * Derives the final display name and native identifier for the selected
+ * target, including non-production defaults.
+ */
 export function deriveResolvedIdentity(
   manifest: RnMtManifest,
   resolvedConfig: Record<string, unknown>,
@@ -185,11 +233,18 @@ export function deriveResolvedIdentity(
     "identity",
     "displayName",
   ]);
-  const resolvedAppName = getStringRecordValue(resolvedConfig, ["identity", "appName"]);
-  const resolvedNativeId = getStringRecordValue(resolvedConfig, ["identity", "nativeId"]);
+  const resolvedAppName = getStringRecordValue(resolvedConfig, [
+    "identity",
+    "appName",
+  ]);
+  const resolvedNativeId = getStringRecordValue(resolvedConfig, [
+    "identity",
+    "nativeId",
+  ]);
   const displaySeed = explicitDisplayName ?? resolvedAppName ?? baseDisplaySeed;
   const nativeIdSeed = resolvedNativeId ?? baseNativeSeed;
-  const isProduction = target.environment === "prod" || target.environment === "production";
+  const isProduction =
+    target.environment === "prod" || target.environment === "production";
 
   if (isProduction) {
     return {
@@ -199,35 +254,59 @@ export function deriveResolvedIdentity(
   }
 
   const environmentSuffix = ` (${toTitleCase(target.environment)})`;
-  const hasDisplayOverride = explicitDisplayName !== null && explicitDisplayName !== baseDisplaySeed;
-  const hasNativeIdOverride = resolvedNativeId !== null && resolvedNativeId !== baseNativeSeed;
+  const hasDisplayOverride =
+    explicitDisplayName !== null && explicitDisplayName !== baseDisplaySeed;
+  const hasNativeIdOverride =
+    resolvedNativeId !== null && resolvedNativeId !== baseNativeSeed;
 
   return {
-    displayName: hasDisplayOverride ? explicitDisplayName : `${displaySeed}${environmentSuffix}`,
-    nativeId: hasNativeIdOverride ? nativeIdSeed : `${nativeIdSeed}.${target.environment}`,
+    displayName: hasDisplayOverride
+      ? explicitDisplayName
+      : `${displaySeed}${environmentSuffix}`,
+    nativeId: hasNativeIdOverride
+      ? nativeIdSeed
+      : `${nativeIdSeed}.${target.environment}`,
   };
 }
 
+/**
+ * Resolves the Android applicationId after config layering and identity
+ * defaulting.
+ */
 export function getResolvedAndroidApplicationId(
   resolvedConfig: Record<string, unknown>,
   fallbackApplicationId: string,
 ) {
   return (
-    getStringRecordValue(resolvedConfig, ["native", "android", "applicationId"])
-    ?? fallbackApplicationId
+    getStringRecordValue(resolvedConfig, [
+      "native",
+      "android",
+      "applicationId",
+    ]) ?? fallbackApplicationId
   );
 }
 
+/**
+ * Resolves the iOS bundle identifier after config layering and identity
+ * defaulting.
+ */
 export function getResolvedIosBundleIdentifier(
   resolvedConfig: Record<string, unknown>,
   fallbackBundleIdentifier: string,
 ) {
   return (
-    getStringRecordValue(resolvedConfig, ["native", "ios", "bundleIdentifier"])
-    ?? fallbackBundleIdentifier
+    getStringRecordValue(resolvedConfig, [
+      "native",
+      "ios",
+      "bundleIdentifier",
+    ]) ?? fallbackBundleIdentifier
   );
 }
 
+/**
+ * Builds the fully resolved runtime artifact for the selected target,
+ * including layered config, identity, flags, assets, and registries.
+ */
 export function resolveTargetRuntime(
   manifest: RnMtManifest,
   target: RnMtResolvedTarget,
@@ -255,8 +334,16 @@ export function resolveTargetRuntime(
     identity.nativeId,
   );
 
-  setStringRecordValue(resolvedConfig, ["identity", "displayName"], identity.displayName);
-  setStringRecordValue(resolvedConfig, ["identity", "nativeId"], identity.nativeId);
+  setStringRecordValue(
+    resolvedConfig,
+    ["identity", "displayName"],
+    identity.displayName,
+  );
+  setStringRecordValue(
+    resolvedConfig,
+    ["identity", "nativeId"],
+    identity.nativeId,
+  );
   setStringRecordValue(
     resolvedConfig,
     ["native", "android", "applicationId"],

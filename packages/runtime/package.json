@@ -9,6 +9,9 @@
   "files": [
     "dist"
   ],
+  "dependencies": {
+    "@rn-mt/shared": "workspace:*"
+  },
   "peerDependencies": {
     "react": ">=18"
   },

@@ -1,3 +1,6 @@
+/**
+ * Public entrypoint for the tenant module.
+ */
 export { RnMtTenantModule } from "./tenant-module";
 
 export type {

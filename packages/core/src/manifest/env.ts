@@ -1,7 +1,14 @@
+/**
+ * Validates manifest environment schema input and related resolution rules.
+ */
 import type { RnMtEnvSource, RnMtManifest, RnMtResolvedTarget } from "./types";
 
 import { isPlainObject } from "./merge";
 
+/**
+ * Verifies that the optional envSchema section uses the supported manifest
+ * shape before any target resolution happens.
+ */
 export function validateEnvSchemaShape(envSchema: unknown) {
   if (envSchema === undefined) {
     return null;
@@ -35,10 +42,18 @@ export function validateEnvSchemaShape(envSchema: unknown) {
   return null;
 }
 
+/**
+ * Returns true when an env input should count as present for required-key
+ * validation.
+ */
 export function hasEnvInputValue(value: string | undefined) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+/**
+ * Validates that all required env inputs are present for the selected target
+ * before sync or run consumes them.
+ */
 export function validateEnvInputs(
   manifest: RnMtManifest,
   target: RnMtResolvedTarget,
@@ -54,7 +69,9 @@ export function validateEnvInputs(
       source: entry.source ?? logicalName,
       required: entry.required ?? false,
     }))
-    .filter((entry) => entry.required && !hasEnvInputValue(envSource[entry.source]));
+    .filter(
+      (entry) => entry.required && !hasEnvInputValue(envSource[entry.source]),
+    );
 
   if (missingInputs.length === 0) {
     return null;

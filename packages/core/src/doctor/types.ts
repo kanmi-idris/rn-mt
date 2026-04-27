@@ -1,3 +1,6 @@
+/**
+ * Type definitions for the doctor module.
+ */
 export type RnMtDoctorCheckStatus = "ok" | "warning";
 
 export interface RnMtDoctorCheck {

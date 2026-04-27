@@ -6,6 +6,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@rn-mt/core": resolve(__dirname, "packages/core/src/index.ts"),
+      "@rn-mt/shared": resolve(__dirname, "packages/shared/src/index.ts"),
     },
   },
   test: {

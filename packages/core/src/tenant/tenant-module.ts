@@ -1,8 +1,16 @@
+/**
+ * Handles tenant lifecycle operations and updates the manifest's default target
+ * selection.
+ */
 import { join } from "node:path";
 
 import type { RnMtManifest } from "../manifest/types";
 import { validateTargetSelection } from "../manifest";
-import { createCurrentFacadeFile, listSharedFiles, isTestSourcePath } from "../convert";
+import {
+  createCurrentFacadeFile,
+  listSharedFiles,
+  isTestSourcePath,
+} from "../convert";
 import { RnMtWorkspace } from "../workspace";
 
 import type {
@@ -12,28 +20,18 @@ import type {
   RnMtTenantRenameResult,
 } from "./types";
 
-function inferDisplayNameFromTenantId(tenantId: string) {
-  return tenantId
-    .split("-")
-    .filter(Boolean)
-    .map((part) => part[0]?.toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function validateTenantId(tenantId: string) {
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(tenantId)) {
-    return [
-      `Invalid tenant id: ${tenantId}`,
-      "Tenant ids must use lowercase letters, numbers, and hyphen separators.",
-    ].join("\n");
-  }
-
-  return null;
-}
-
+/**
+ * Encapsulates tenant behavior behind a constructor-backed seam.
+ */
 export class RnMtTenantModule {
+  /**
+   * Initializes the tenant with its shared dependencies.
+   */
   constructor(private readonly dependencies: { workspace: RnMtWorkspace }) {}
 
+  /**
+   * Sets default target for the tenant flow.
+   */
   setDefaultTarget(options: {
     manifest: RnMtManifest;
     target: {
@@ -41,7 +39,10 @@ export class RnMtTenantModule {
       environment: string;
     };
   }): RnMtTargetSetResult {
-    const validationError = validateTargetSelection(options.manifest, options.target);
+    const validationError = validateTargetSelection(
+      options.manifest,
+      options.target,
+    );
 
     if (validationError) {
       throw new Error(validationError);
@@ -59,6 +60,9 @@ export class RnMtTenantModule {
     };
   }
 
+  /**
+   * Adds a new tenant entry to the manifest and seeds its override directory.
+   */
   add(options: {
     manifest: RnMtManifest;
     tenant: {
@@ -67,7 +71,7 @@ export class RnMtTenantModule {
     };
   }): RnMtTenantAddResult {
     const normalizedTenantId = options.tenant.id.trim();
-    const tenantIdError = validateTenantId(normalizedTenantId);
+    const tenantIdError = this.validateTenantId(normalizedTenantId);
 
     if (tenantIdError) {
       throw new Error(tenantIdError);
@@ -79,7 +83,7 @@ export class RnMtTenantModule {
 
     const displayName =
       options.tenant.displayName?.trim() ||
-      inferDisplayNameFromTenantId(normalizedTenantId) ||
+      this.inferDisplayNameFromTenantId(normalizedTenantId) ||
       normalizedTenantId;
 
     return {
@@ -99,13 +103,20 @@ export class RnMtTenantModule {
       },
       createdFiles: [
         {
-          path: join(this.dependencies.workspace.getTenantRootDir(normalizedTenantId), ".gitkeep"),
+          path: join(
+            this.dependencies.workspace.getTenantRootDir(normalizedTenantId),
+            ".gitkeep",
+          ),
           contents: "",
         },
       ],
     };
   }
 
+  /**
+   * Renames an existing tenant across manifest state, tenant directories, and
+   * tenant-scoped env files.
+   */
   rename(options: {
     manifest: RnMtManifest;
     tenant: {
@@ -121,14 +132,16 @@ export class RnMtTenantModule {
       throw new Error(`Unknown tenant: ${fromId}`);
     }
 
-    const tenantIdError = validateTenantId(toId);
+    const tenantIdError = this.validateTenantId(toId);
 
     if (tenantIdError) {
       throw new Error(tenantIdError);
     }
 
     if (fromId === toId) {
-      throw new Error(`Tenant rename requires a different target id: ${fromId}`);
+      throw new Error(
+        `Tenant rename requires a different target id: ${fromId}`,
+      );
     }
 
     if (options.manifest.tenants[toId]) {
@@ -154,8 +167,14 @@ export class RnMtTenantModule {
     }
 
     for (const environmentId of Object.keys(options.manifest.environments)) {
-      const fromEnvPath = join(this.dependencies.workspace.rootDir, `.env.${fromId}.${environmentId}`);
-      const toEnvPath = join(this.dependencies.workspace.rootDir, `.env.${toId}.${environmentId}`);
+      const fromEnvPath = join(
+        this.dependencies.workspace.rootDir,
+        `.env.${fromId}.${environmentId}`,
+      );
+      const toEnvPath = join(
+        this.dependencies.workspace.rootDir,
+        `.env.${toId}.${environmentId}`,
+      );
 
       if (!this.dependencies.workspace.exists(fromEnvPath)) {
         continue;
@@ -172,7 +191,8 @@ export class RnMtTenantModule {
     }
 
     const previousTenantLayer = options.manifest.tenants[fromId];
-    const displayName = options.tenant.displayName?.trim() || previousTenantLayer.displayName;
+    const displayName =
+      options.tenant.displayName?.trim() || previousTenantLayer.displayName;
     const nextTenants = { ...options.manifest.tenants };
 
     delete nextTenants[fromId];
@@ -191,17 +211,34 @@ export class RnMtTenantModule {
               path: sharedPath,
               contents: this.dependencies.workspace.readText(sharedPath),
             };
-            const relativeSharedPath = sharedPath.slice(sharedRootDir.length + 1);
-            const previousOverridePath = join(fromTenantDir, relativeSharedPath);
+            const relativeSharedPath = sharedPath.slice(
+              sharedRootDir.length + 1,
+            );
+            const previousOverridePath = join(
+              fromTenantDir,
+              relativeSharedPath,
+            );
 
             return this.dependencies.workspace.isFile(previousOverridePath)
-              ? createCurrentFacadeFile(this.dependencies.workspace, toId, sharedFile, {
-                  overrideFile: {
-                    path: join(toTenantDir, relativeSharedPath),
-                    contents: this.dependencies.workspace.readText(previousOverridePath),
+              ? createCurrentFacadeFile(
+                  this.dependencies.workspace,
+                  toId,
+                  sharedFile,
+                  {
+                    overrideFile: {
+                      path: join(toTenantDir, relativeSharedPath),
+                      contents:
+                        this.dependencies.workspace.readText(
+                          previousOverridePath,
+                        ),
+                    },
                   },
-                })
-              : createCurrentFacadeFile(this.dependencies.workspace, toId, sharedFile);
+                )
+              : createCurrentFacadeFile(
+                  this.dependencies.workspace,
+                  toId,
+                  sharedFile,
+                );
           })
       : [];
 
@@ -210,7 +247,9 @@ export class RnMtTenantModule {
       manifest: {
         ...options.manifest,
         defaults: {
-          tenant: isDefaultTenantRename ? toId : options.manifest.defaults.tenant,
+          tenant: isDefaultTenantRename
+            ? toId
+            : options.manifest.defaults.tenant,
           environment: options.manifest.defaults.environment,
         },
         tenants: nextTenants,
@@ -225,6 +264,9 @@ export class RnMtTenantModule {
     };
   }
 
+  /**
+   * Removes the requested value for the tenant flow.
+   */
   remove(options: {
     manifest: RnMtManifest;
     tenant: { id: string };
@@ -250,7 +292,10 @@ export class RnMtTenantModule {
     }
 
     for (const environmentId of Object.keys(options.manifest.environments)) {
-      const envFilePath = join(this.dependencies.workspace.rootDir, `.env.${tenantId}.${environmentId}`);
+      const envFilePath = join(
+        this.dependencies.workspace.rootDir,
+        `.env.${tenantId}.${environmentId}`,
+      );
 
       if (this.dependencies.workspace.exists(envFilePath)) {
         removedPaths.push(envFilePath);
@@ -270,7 +315,34 @@ export class RnMtTenantModule {
         id: tenantId,
         displayName: tenantLayer.displayName,
       },
-      removedPaths: removedPaths.sort((left, right) => left.localeCompare(right)),
+      removedPaths: removedPaths.sort((left, right) =>
+        left.localeCompare(right),
+      ),
     };
+  }
+
+  /**
+   * Infers display name from tenant id for the tenant flow.
+   */
+  private inferDisplayNameFromTenantId(tenantId: string) {
+    return tenantId
+      .split("-")
+      .filter(Boolean)
+      .map((part) => part[0]?.toUpperCase() + part.slice(1))
+      .join(" ");
+  }
+
+  /**
+   * Validates tenant id for the tenant flow.
+   */
+  private validateTenantId(tenantId: string) {
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(tenantId)) {
+      return [
+        `Invalid tenant id: ${tenantId}`,
+        "Tenant ids must use lowercase letters, numbers, and hyphen separators.",
+      ].join("\n");
+    }
+
+    return null;
   }
 }

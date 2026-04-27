@@ -1,3 +1,6 @@
+/**
+ * Resolves manifest-backed static registries such as routes, features, menus, and actions.
+ */
 import type {
   RnMtManifest,
   RnMtManifestLayer,
@@ -8,6 +11,10 @@ import type {
 
 import { getCombinationKeys } from "./merge";
 
+/**
+ * Applies a single add/replace/disable registry layer while preserving stable
+ * item ordering by id.
+ */
 export function applyStaticRegistryLayer<T extends RnMtStaticRegistryItem>(
   entries: T[],
   layer: RnMtStaticRegistryLayer<T> | undefined,
@@ -41,6 +48,10 @@ export function applyStaticRegistryLayer<T extends RnMtStaticRegistryItem>(
     .filter((entry): entry is T => entry !== undefined);
 }
 
+/**
+ * Removes registry entries whose enabledByFlag is false in the resolved flag
+ * set.
+ */
 export function applyStaticRegistryFlagGating<T extends RnMtStaticRegistryItem>(
   entries: T[],
   flags: Record<string, unknown>,
@@ -54,16 +65,24 @@ export function applyStaticRegistryFlagGating<T extends RnMtStaticRegistryItem>(
   });
 }
 
+/**
+ * Resolves a static registry such as routes, features, menus, or actions for a
+ * selected target.
+ */
 export function resolveStaticRegistry<T extends RnMtStaticRegistryItem>(
   manifest: RnMtManifest,
   target: RnMtResolvedTarget,
   baseEntries: T[] | undefined,
-  selectLayer: (layer: RnMtManifestLayer) => RnMtStaticRegistryLayer<T> | undefined,
+  selectLayer: (
+    layer: RnMtManifestLayer,
+  ) => RnMtStaticRegistryLayer<T> | undefined,
   flags: Record<string, unknown>,
 ) {
   const environment = manifest.environments[target.environment];
   const tenant = manifest.tenants[target.tenant];
-  const platform = target.platform ? manifest.platforms?.[target.platform] : undefined;
+  const platform = target.platform
+    ? manifest.platforms?.[target.platform]
+    : undefined;
   const combination = getCombinationKeys(target)
     .map((key) => manifest.combinations?.[key])
     .find((entry) => entry);
@@ -72,7 +91,10 @@ export function resolveStaticRegistry<T extends RnMtStaticRegistryItem>(
     applyStaticRegistryLayer(
       applyStaticRegistryLayer(
         applyStaticRegistryLayer(
-          applyStaticRegistryLayer(baseEntries ?? [], environment ? selectLayer(environment) : undefined),
+          applyStaticRegistryLayer(
+            baseEntries ?? [],
+            environment ? selectLayer(environment) : undefined,
+          ),
           tenant ? selectLayer(tenant) : undefined,
         ),
         platform ? selectLayer(platform) : undefined,

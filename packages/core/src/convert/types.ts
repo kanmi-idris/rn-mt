@@ -1,3 +1,6 @@
+/**
+ * Type definitions for the convert module.
+ */
 import type { RnMtManifest } from "../manifest/types";
 import type { RnMtSyncGeneratedFile } from "../sync/types";
 

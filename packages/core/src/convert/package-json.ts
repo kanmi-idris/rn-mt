@@ -1,3 +1,6 @@
+/**
+ * Builds package.json mutations needed by converted repos.
+ */
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,6 +15,10 @@ interface RnMtPackageJsonLike {
   packageManager?: string;
 }
 
+/**
+ * Reads the current monorepo package version so converted repos pin matching
+ * local rn-mt packages.
+ */
 export function getRnMtPackageVersion() {
   const packageJsonPath = join(
     dirname(fileURLToPath(import.meta.url)),
@@ -19,15 +26,17 @@ export function getRnMtPackageVersion() {
     "..",
     "package.json",
   );
-  const packageJson = JSON.parse(
-    readFileSync(packageJsonPath, "utf8"),
-  ) as {
+  const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
     version?: string;
   };
 
   return packageJson.version ?? "0.1.0";
 }
 
+/**
+ * Returns the rn-mt packages a converted repo should depend on for its app
+ * kind.
+ */
 export function getLocalRnMtPackagePlan(appKind: RnMtRepoAppKind) {
   const version = getRnMtPackageVersion();
   const localPackages: Array<{
@@ -58,6 +67,9 @@ export function getLocalRnMtPackagePlan(appKind: RnMtRepoAppKind) {
   return localPackages;
 }
 
+/**
+ * Returns the install command that matches the detected package manager.
+ */
 export function createInstallCommand(packageManager: {
   name: import("../analyze/types").RnMtPackageManagerName;
 }) {
@@ -80,6 +92,9 @@ export function createInstallCommand(packageManager: {
   return null;
 }
 
+/**
+ * Returns the host workflow script defaults for each supported repo kind.
+ */
 function getDefaultWorkflowScripts(appKind: RnMtRepoAppKind) {
   if (appKind === "expo-managed") {
     return {
@@ -104,12 +119,22 @@ function getDefaultWorkflowScripts(appKind: RnMtRepoAppKind) {
   };
 }
 
-function createRunHelperScript(command: string, options: { platform?: "ios" | "android" } = {}) {
+/**
+ * Wraps a host workflow command so it executes through rn-mt run.
+ */
+function createRunHelperScript(
+  command: string,
+  options: { platform?: "ios" | "android" } = {},
+) {
   return options.platform
     ? `rn-mt run --platform ${options.platform} -- ${command}`
     : `rn-mt run -- ${command}`;
 }
 
+/**
+ * Appends a generated script step without discarding any existing package.json
+ * behavior.
+ */
 function chainPackageScript(
   existingCommand: string | undefined,
   generatedCommand: string,
@@ -121,11 +146,17 @@ function chainPackageScript(
   return `${existingCommand} && ${generatedCommand}`;
 }
 
+/**
+ * Rewrites package.json so converted repos use rn-mt scripts and pinned local
+ * package dependencies.
+ */
 export function createConvertedPackageJsonContents(
   packageJsonContents: string,
   appKind: RnMtRepoAppKind,
 ) {
-  const parsedPackageJson = JSON.parse(packageJsonContents) as RnMtPackageJsonLike;
+  const parsedPackageJson = JSON.parse(
+    packageJsonContents,
+  ) as RnMtPackageJsonLike;
   const existingScripts = parsedPackageJson.scripts ?? {};
   const existingDependencies = parsedPackageJson.dependencies ?? {};
   const existingDevDependencies = parsedPackageJson.devDependencies ?? {};
@@ -153,10 +184,18 @@ export function createConvertedPackageJsonContents(
       scripts: {
         ...existingScripts,
         start: createRunHelperScript(hostStartScript),
-        android: createRunHelperScript(hostAndroidScript, { platform: "android" }),
+        android: createRunHelperScript(hostAndroidScript, {
+          platform: "android",
+        }),
         ios: createRunHelperScript(hostIosScript, { platform: "ios" }),
-        prestart: chainPackageScript(existingScripts.prestart, "rn-mt hook prestart"),
-        preandroid: chainPackageScript(existingScripts.preandroid, "rn-mt hook preandroid"),
+        prestart: chainPackageScript(
+          existingScripts.prestart,
+          "rn-mt hook prestart",
+        ),
+        preandroid: chainPackageScript(
+          existingScripts.preandroid,
+          "rn-mt hook preandroid",
+        ),
         preios: chainPackageScript(existingScripts.preios, "rn-mt hook preios"),
         postinstall: chainPackageScript(
           existingScripts.postinstall,
@@ -166,7 +205,9 @@ export function createConvertedPackageJsonContents(
         "rn-mt:sync:android": "rn-mt sync --platform android",
         "rn-mt:sync:ios": "rn-mt sync --platform ios",
         "rn-mt:start": createRunHelperScript(hostStartScript),
-        "rn-mt:android": createRunHelperScript(hostAndroidScript, { platform: "android" }),
+        "rn-mt:android": createRunHelperScript(hostAndroidScript, {
+          platform: "android",
+        }),
         "rn-mt:ios": createRunHelperScript(hostIosScript, { platform: "ios" }),
       },
     },
@@ -175,12 +216,18 @@ export function createConvertedPackageJsonContents(
   )}\n`;
 }
 
+/**
+ * Removes rn-mt run wrappers when a handoff export restores plain host
+ * workflow scripts.
+ */
 function unwrapRunHelperScript(command: string | undefined) {
   if (!command) {
     return undefined;
   }
 
-  const platformMatch = command.match(/^rn-mt run --platform (android|ios) -- (.+)$/u);
+  const platformMatch = command.match(
+    /^rn-mt run --platform (android|ios) -- (.+)$/u,
+  );
 
   if (platformMatch) {
     return platformMatch[2];
@@ -191,7 +238,13 @@ function unwrapRunHelperScript(command: string | undefined) {
   return directMatch?.[1] ?? command;
 }
 
-function removeGeneratedHookScript(command: string | undefined, generatedCommand: string) {
+/**
+ * Removes generated hook script.
+ */
+function removeGeneratedHookScript(
+  command: string | undefined,
+  generatedCommand: string,
+) {
   if (!command || command.trim().length === 0) {
     return undefined;
   }
@@ -204,11 +257,16 @@ function removeGeneratedHookScript(command: string | undefined, generatedCommand
   return segments.length > 0 ? segments.join(" && ") : undefined;
 }
 
+/**
+ * Creates standalone package json contents.
+ */
 export function createStandalonePackageJsonContents(
   packageJsonContents: string,
   appKind: RnMtRepoAppKind,
 ) {
-  const parsedPackageJson = JSON.parse(packageJsonContents) as RnMtPackageJsonLike;
+  const parsedPackageJson = JSON.parse(
+    packageJsonContents,
+  ) as RnMtPackageJsonLike;
   const existingScripts = parsedPackageJson.scripts ?? {};
   const defaultScripts = getDefaultWorkflowScripts(appKind);
   const dependencies = { ...(parsedPackageJson.dependencies ?? {}) };
@@ -224,10 +282,14 @@ export function createStandalonePackageJsonContents(
 
   const scripts: Record<string, string> = { ...existingScripts };
   const restoredStartScript = unwrapRunHelperScript(
-    existingScripts["rn-mt:start"] ?? existingScripts.start ?? defaultScripts.start,
+    existingScripts["rn-mt:start"] ??
+      existingScripts.start ??
+      defaultScripts.start,
   );
   const restoredAndroidScript = unwrapRunHelperScript(
-    existingScripts["rn-mt:android"] ?? existingScripts.android ?? defaultScripts.android,
+    existingScripts["rn-mt:android"] ??
+      existingScripts.android ??
+      defaultScripts.android,
   );
   const restoredIosScript = unwrapRunHelperScript(
     existingScripts["rn-mt:ios"] ?? existingScripts.ios ?? defaultScripts.ios,
@@ -253,7 +315,10 @@ export function createStandalonePackageJsonContents(
     existingScripts.preandroid,
     "rn-mt hook preandroid",
   );
-  const cleanedPreios = removeGeneratedHookScript(existingScripts.preios, "rn-mt hook preios");
+  const cleanedPreios = removeGeneratedHookScript(
+    existingScripts.preios,
+    "rn-mt hook preios",
+  );
   const cleanedPostinstall = removeGeneratedHookScript(
     existingScripts.postinstall,
     "rn-mt hook postinstall",

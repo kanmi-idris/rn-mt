@@ -1,12 +1,29 @@
+/**
+ * Builds generated native artifacts during sync.
+ */
 import { readdirSync } from "node:fs";
 import { basename, join } from "node:path";
 
-import type { RnMtManifest, RnMtResolvedRuntimeArtifact, RnMtResolvedTarget } from "../manifest/types";
-import { getResolvedAndroidApplicationId, getResolvedIosBundleIdentifier } from "../manifest";
+import type {
+  RnMtManifest,
+  RnMtResolvedRuntimeArtifact,
+  RnMtResolvedTarget,
+} from "../manifest/types";
+import {
+  getResolvedAndroidApplicationId,
+  getResolvedIosBundleIdentifier,
+} from "../manifest";
 import { RnMtWorkspace } from "../workspace";
 
-import type { RnMtExpoTargetContextArtifact, RnMtSyncGeneratedFile } from "./types";
+import type {
+  RnMtExpoTargetContextArtifact,
+  RnMtSyncGeneratedFile,
+} from "./types";
 
+/**
+ * Returns true when the repo has an Expo config surface that should receive an
+ * rn-mt target bridge.
+ */
 export function hasExpoComputedConfig(workspace: RnMtWorkspace) {
   return [
     join(workspace.rootDir, "app.config.ts"),
@@ -15,6 +32,9 @@ export function hasExpoComputedConfig(workspace: RnMtWorkspace) {
   ].some((path) => workspace.exists(path));
 }
 
+/**
+ * Creates the generated Expo target-context bridge consumed by app.config.
+ */
 export function createExpoTargetContextFile(
   workspace: RnMtWorkspace,
   runtime: RnMtResolvedRuntimeArtifact,
@@ -49,6 +69,9 @@ export function createExpoTargetContextFile(
   };
 }
 
+/**
+ * Returns true when the repo contains a bare Android project shape.
+ */
 export function hasBareAndroidProject(workspace: RnMtWorkspace) {
   return [
     join(workspace.rootDir, "android", "app", "build.gradle"),
@@ -56,6 +79,9 @@ export function hasBareAndroidProject(workspace: RnMtWorkspace) {
   ].some((path) => workspace.exists(path));
 }
 
+/**
+ * Converts a tenant or environment id into a safe Gradle flavor identifier.
+ */
 export function toGradleFlavorIdentifier(value: string) {
   const segments = value
     .split(/[^a-zA-Z0-9]+/u)
@@ -74,27 +100,33 @@ export function toGradleFlavorIdentifier(value: string) {
     : `rnMt${combined.charAt(0).toUpperCase()}${combined.slice(1)}`;
 }
 
+/**
+ * Escapes a string for safe inclusion in generated Gradle files.
+ */
 export function toGradleStringLiteral(value: string) {
-  return `"${value
-    .replace(/\\/gu, "\\\\")
-    .replace(/"/gu, '\\"')}"`;
+  return `"${value.replace(/\\/gu, "\\\\").replace(/"/gu, '\\"')}"`;
 }
 
+/**
+ * Creates android flavor config file.
+ */
 export function createAndroidFlavorConfigFile(
   workspace: RnMtWorkspace,
   manifest: RnMtManifest,
   runtime: RnMtResolvedRuntimeArtifact,
   target: RnMtResolvedTarget,
 ): RnMtSyncGeneratedFile {
-  const tenantEntries = Object.entries(manifest.tenants).sort(([left], [right]) =>
-    left.localeCompare(right),
+  const tenantEntries = Object.entries(manifest.tenants).sort(
+    ([left], [right]) => left.localeCompare(right),
   );
-  const environmentEntries = Object.entries(manifest.environments).sort(([left], [right]) =>
-    left.localeCompare(right),
+  const environmentEntries = Object.entries(manifest.environments).sort(
+    ([left], [right]) => left.localeCompare(right),
   );
-  const selectedVariant = `${toGradleFlavorIdentifier(target.tenant)}${
-    toGradleFlavorIdentifier(target.environment).charAt(0).toUpperCase()
-  }${toGradleFlavorIdentifier(target.environment).slice(1)}`;
+  const selectedVariant = `${toGradleFlavorIdentifier(target.tenant)}${toGradleFlavorIdentifier(
+    target.environment,
+  )
+    .charAt(0)
+    .toUpperCase()}${toGradleFlavorIdentifier(target.environment).slice(1)}`;
   const selectedApplicationId = getResolvedAndroidApplicationId(
     runtime.config,
     runtime.identity.nativeId,
@@ -125,7 +157,8 @@ export function createAndroidFlavorConfigFile(
   }
 
   for (const [environmentId, environment] of environmentEntries) {
-    const isProduction = environmentId === "prod" || environmentId === "production";
+    const isProduction =
+      environmentId === "prod" || environmentId === "production";
 
     lines.push(
       `    ${toGradleFlavorIdentifier(environmentId)} {`,
@@ -139,7 +172,9 @@ export function createAndroidFlavorConfigFile(
     );
 
     if (!isProduction) {
-      lines.push(`      applicationIdSuffix ${toGradleStringLiteral(`.${environmentId}`)}`);
+      lines.push(
+        `      applicationIdSuffix ${toGradleStringLiteral(`.${environmentId}`)}`,
+      );
     }
 
     lines.push("    }", "");
@@ -148,12 +183,20 @@ export function createAndroidFlavorConfigFile(
   lines.push("  }", "}", "");
 
   return {
-    path: join(workspace.rootDir, "android", "app", "rn-mt.generated.flavors.gradle"),
+    path: join(
+      workspace.rootDir,
+      "android",
+      "app",
+      "rn-mt.generated.flavors.gradle",
+    ),
     kind: "android-flavor-config",
     contents: lines.join("\n"),
   };
 }
 
+/**
+ * Creates android native identity file.
+ */
 export function createAndroidNativeIdentityFile(
   workspace: RnMtWorkspace,
   runtime: RnMtResolvedRuntimeArtifact,
@@ -165,7 +208,12 @@ export function createAndroidNativeIdentityFile(
   );
 
   return {
-    path: join(workspace.rootDir, "android", "app", "rn-mt.generated.identity.gradle"),
+    path: join(
+      workspace.rootDir,
+      "android",
+      "app",
+      "rn-mt.generated.identity.gradle",
+    ),
     kind: "android-native-identity",
     contents: [
       "// Generated by rn-mt. Selected Android identity config. Do not edit directly.",
@@ -182,6 +230,9 @@ export function createAndroidNativeIdentityFile(
   };
 }
 
+/**
+ * Returns the bare iOS Xcode project name when one exists.
+ */
 export function getBareIosProjectName(workspace: RnMtWorkspace) {
   const iosDir = join(workspace.rootDir, "ios");
 
@@ -189,13 +240,17 @@ export function getBareIosProjectName(workspace: RnMtWorkspace) {
     return null;
   }
 
-  const projectDirName = readdirSync(iosDir, { withFileTypes: true })
-    .find((entry) => entry.isDirectory() && entry.name.endsWith(".xcodeproj"))
-    ?.name;
+  const projectDirName = readdirSync(iosDir, { withFileTypes: true }).find(
+    (entry) => entry.isDirectory() && entry.name.endsWith(".xcodeproj"),
+  )?.name;
 
   return projectDirName ? projectDirName.replace(/\.xcodeproj$/u, "") : null;
 }
 
+/**
+ * Converts a slug-like value into a PascalCase identifier for generated iOS
+ * artifacts.
+ */
 export function toPascalIdentifier(value: string) {
   const segments = value
     .split(/[^a-zA-Z0-9]+/u)
@@ -211,12 +266,16 @@ export function toPascalIdentifier(value: string) {
     .join("");
 }
 
+/**
+ * Escapes a string for safe inclusion in generated xcconfig files.
+ */
 export function toXcconfigStringLiteral(value: string) {
-  return `"${value
-    .replace(/\\/gu, "\\\\")
-    .replace(/"/gu, '\\"')}"`;
+  return `"${value.replace(/\\/gu, "\\\\").replace(/"/gu, '\\"')}"`;
 }
 
+/**
+ * Creates ios native config files.
+ */
 export function createIosNativeConfigFiles(
   workspace: RnMtWorkspace,
   runtime: RnMtResolvedRuntimeArtifact,
@@ -241,15 +300,23 @@ export function createIosNativeConfigFiles(
     "xcschemes",
     `${schemeName}.xcscheme`,
   );
-  const targetXcconfigPath = join(workspace.rootDir, "ios", targetXcconfigFileName);
-  const currentXcconfigPath = join(workspace.rootDir, "ios", currentXcconfigFileName);
+  const targetXcconfigPath = join(
+    workspace.rootDir,
+    "ios",
+    targetXcconfigFileName,
+  );
+  const currentXcconfigPath = join(
+    workspace.rootDir,
+    "ios",
+    currentXcconfigFileName,
+  );
   const schemeContents = [
     '<?xml version="1.0" encoding="UTF-8"?>',
-    "<Scheme LastUpgradeVersion=\"9999\" version=\"1.7\">",
+    '<Scheme LastUpgradeVersion="9999" version="1.7">',
     "  <!-- Generated by rn-mt. Shared tenant-environment scheme. Do not edit directly. -->",
     `  <!-- Selected target: ${target.tenant}/${target.environment}/ios -->`,
     `  <!-- xcconfig include: ${currentXcconfigFileName} -->`,
-    "  <LaunchAction buildConfiguration=\"Debug\">",
+    '  <LaunchAction buildConfiguration="Debug">',
     "    <EnvironmentVariables>",
     `      <EnvironmentVariable key=\"RN_MT_TENANT\" value=\"${target.tenant}\" isEnabled=\"YES\" />`,
     `      <EnvironmentVariable key=\"RN_MT_ENVIRONMENT\" value=\"${target.environment}\" isEnabled=\"YES\" />`,

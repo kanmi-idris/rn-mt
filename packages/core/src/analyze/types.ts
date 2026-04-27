@@ -1,3 +1,6 @@
+/**
+ * Type definitions for the analyze module.
+ */
 import type { RnMtManifest } from "../manifest/types";
 
 export type RnMtMilestone = "milestone-1" | "milestone-2";

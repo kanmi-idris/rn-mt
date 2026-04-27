@@ -1,3 +1,6 @@
+/**
+ * Implements the convert core module.
+ */
 import { readdirSync, type Dirent } from "node:fs";
 import { dirname, join, relative } from "node:path";
 
@@ -8,8 +11,19 @@ import { createOwnershipMetadataFile } from "../sync";
 import type { RnMtSyncGeneratedFile } from "../sync/types";
 import { RnMtWorkspace } from "../workspace";
 
-import { createCurrentFacadeFile, createCurrentFacadeFiles, createRootWrapperContents, createBridgeFacadeModuleContents, rootWrapperBanner } from "./facade-writer";
-import { createConvertedPackageJsonContents, createInstallCommand, createStandalonePackageJsonContents, getLocalRnMtPackagePlan } from "./package-json";
+import {
+  createCurrentFacadeFile,
+  createCurrentFacadeFiles,
+  createRootWrapperContents,
+  createBridgeFacadeModuleContents,
+  rootWrapperBanner,
+} from "./facade-writer";
+import {
+  createConvertedPackageJsonContents,
+  createInstallCommand,
+  createStandalonePackageJsonContents,
+  getLocalRnMtPackagePlan,
+} from "./package-json";
 import {
   getAliasRules,
   isFacadeSourceFile,
@@ -41,16 +55,25 @@ const convertibleRootEntryFiles = [
   "index.js",
 ] as const;
 
-const convertCategoryDirNames = ["config", "theme", "assets", "__tests__", "tests"] as const;
+const convertCategoryDirNames = [
+  "config",
+  "theme",
+  "assets",
+  "__tests__",
+  "tests",
+] as const;
 
-function isTestModuleFileName(fileName: string) {
-  return /\.(test|spec)\.[^.]+$/u.test(fileName);
-}
-
+/**
+ * Returns true when a file should be scanned as text during audit and handoff
+ * flows.
+ */
 export function isAuditableTextFile(path: string) {
   return /\.(ts|tsx|js|jsx|json|md|txt)$/u.test(path);
 }
 
+/**
+ * Lists every file currently living under the converted shared source tree.
+ */
 export function listSharedFiles(workspace: RnMtWorkspace) {
   const sharedRootDir = workspace.getSharedRootDir();
 
@@ -58,205 +81,15 @@ export function listSharedFiles(workspace: RnMtWorkspace) {
     return [];
   }
 
-  return workspace.listFiles(sharedRootDir).sort((left, right) => left.localeCompare(right));
+  return workspace
+    .listFiles(sharedRootDir)
+    .sort((left, right) => left.localeCompare(right));
 }
 
-function getConvertCategoryFilePaths(workspace: RnMtWorkspace) {
-  const categoryFilePaths = new Set<string>();
-  const candidateBases = [workspace.rootDir, join(workspace.rootDir, "src")];
-
-  for (const basePath of candidateBases) {
-    if (!workspace.isDirectory(basePath)) {
-      continue;
-    }
-
-    for (const entry of readdirSync(basePath, { withFileTypes: true }) as Dirent[]) {
-      if (basePath.endsWith("/src") && entry.name === "rn-mt") {
-        continue;
-      }
-
-      const entryPath = join(basePath, entry.name);
-
-      if (entry.isDirectory() && convertCategoryDirNames.includes(entry.name as typeof convertCategoryDirNames[number])) {
-        for (const filePath of workspace.listFiles(entryPath)) {
-          categoryFilePaths.add(filePath);
-        }
-      }
-
-      if (
-        entry.isFile() &&
-        (convertCategoryDirNames.some((name) => entry.name === `${name}.ts` || entry.name === `${name}.tsx` || entry.name === `${name}.js` || entry.name === `${name}.jsx` || entry.name === `${name}.json`) ||
-          isTestModuleFileName(entry.name))
-      ) {
-        categoryFilePaths.add(entryPath);
-      }
-    }
-  }
-
-  return [...categoryFilePaths].sort((left, right) => left.localeCompare(right));
-}
-
-function getConvertibleRootEntryFiles(workspace: RnMtWorkspace) {
-  return convertibleRootEntryFiles
-    .map((fileName) => {
-      const path = join(workspace.rootDir, fileName);
-
-      if (!workspace.exists(path)) {
-        return null;
-      }
-
-      return {
-        fileName,
-        path,
-        contents: workspace.readText(path),
-      };
-    })
-    .filter((entry): entry is {
-      fileName: typeof convertibleRootEntryFiles[number];
-      path: string;
-      contents: string;
-    } => entry !== null);
-}
-
-function isSupportedBridgeConfigPath(rootDir: string, sourcePath: string) {
-  const relativeSourcePath = relative(rootDir, sourcePath).replace(/\\/gu, "/");
-  const pathSegments = relativeSourcePath.split("/");
-  const fileName = pathSegments[pathSegments.length - 1] ?? "";
-
-  return (
-    pathSegments.includes("config") ||
-    /^config\.(ts|tsx|js|jsx|json)$/u.test(fileName)
-  );
-}
-
-function resolveBridgeConfigModulePath(
-  workspace: RnMtWorkspace,
-  selectedPath: string | null | undefined,
-) {
-  if (!selectedPath) {
-    return null;
-  }
-
-  const candidatePath = selectedPath.startsWith(workspace.rootDir)
-    ? selectedPath
-    : join(workspace.rootDir, selectedPath);
-  const relativeSelectedPath = relative(workspace.rootDir, candidatePath);
-
-  if (relativeSelectedPath.startsWith("..") || !workspace.isFile(candidatePath)) {
-    throw new Error(`Bridge config module not found: ${candidatePath}`);
-  }
-
-  if (!isFacadeSourceFile(candidatePath) || !isSupportedBridgeConfigPath(workspace.rootDir, candidatePath)) {
-    throw new Error(
-      `Bridge mode only supports explicit host config modules. Received: ${candidatePath}`,
-    );
-  }
-
-  return candidatePath;
-}
-
-function createHostConfigBridgeFile(
-  workspace: RnMtWorkspace,
-  sourcePath: string,
-  movedDestinationPath: string,
-  sourceContents: string,
-): RnMtSyncGeneratedFile {
-  const sharedRootDir = workspace.getSharedRootDir();
-  const relativeSharedPath = movedDestinationPath.slice(sharedRootDir.length + 1);
-  const currentFacadePath = join(workspace.getCurrentRootDir(), relativeSharedPath);
-  const importPath = normalizeImportPath(
-    stripSupportedSourceExtension(relative(dirname(sourcePath), currentFacadePath)),
-  );
-
-  return {
-    path: sourcePath,
-    kind: "host-config-bridge",
-    contents: createBridgeFacadeModuleContents(importPath, sourceContents),
-  };
-}
-
-function createUserOwnedExtensionContents(hostLanguage: RnMtHostLanguage) {
-  return [
-    "// User-owned rn-mt extension module. Safe to edit.",
-    "// Add custom helpers here instead of editing CLI-owned generated files.",
-    hostLanguage === "typescript"
-      ? "export const rnMtExtensions = {} as const;"
-      : "export const rnMtExtensions = {};",
-    "",
-  ].join("\n");
-}
-
-function createRepoLocalGuideContents() {
-  return [
-    "# rn-mt Ownership and Handoff Guide",
-    "",
-    "## CLI-owned files",
-    "",
-    "Do not edit rn-mt generated files directly. Re-run `rn-mt convert`, `rn-mt sync`, or other rn-mt commands instead.",
-    "",
-    "Common CLI-owned paths in this repo:",
-    "",
-    "- Root wrapper files such as `App.tsx`, `App.js`, `index.ts`, or `index.js` after conversion",
-    "- `src/rn-mt/current/**` current facades",
-    "- `rn-mt.generated.convert.ownership.json`",
-    "- `rn-mt.generated.reconstruction.json`",
-    "- `rn-mt.generated.runtime.json`",
-    "- `rn-mt.generated.ownership.json`",
-    "- Generated native include files, Expo bridge files, and derived assets written by `rn-mt sync`",
-    "",
-    "## User-owned files",
-    "",
-    "Make product changes in the user-owned surfaces:",
-    "",
-    "- `rn-mt.config.json`",
-    "- `src/rn-mt/shared/**`",
-    "- `src/rn-mt/tenants/**`",
-    "- `src/rn-mt/extensions/**`",
-    "",
-    "Use `rn-mt override create <path>` when a shared file needs a tenant-specific override.",
-    "",
-    "## Handoff expectations",
-    "",
-    "A future `rn-mt handoff --tenant <id>` flow is expected to:",
-    "",
-    "- Create a new sibling output repo instead of mutating this workspace in place",
-    "- Remove rn-mt-specific machinery from the delivered tenant repo",
-    "- Strip git history by default and sanitize env files before delivery",
-    "- Depend on a healthy repo with clean sync output and a clean audit result",
-    "",
-  ].join("\n");
-}
-
-function createRepoLocalGuideLinkSection() {
-  return [
-    "<!-- rn-mt:guide-link:start -->",
-    "## rn-mt",
-    "",
-    "See [rn-mt ownership and handoff guide](./rn-mt.generated.README.md) for CLI-owned files, user-owned extension points, and handoff expectations.",
-    "<!-- rn-mt:guide-link:end -->",
-    "",
-  ].join("\n");
-}
-
-function addRepoLocalGuideLinkToReadme(readmeContents: string) {
-  const linkSection = createRepoLocalGuideLinkSection();
-  const normalizedContents = readmeContents.trimEnd();
-  const startMarker = "<!-- rn-mt:guide-link:start -->";
-  const endMarker = "<!-- rn-mt:guide-link:end -->";
-  const existingStartIndex = normalizedContents.indexOf(startMarker);
-  const existingEndIndex = normalizedContents.indexOf(endMarker);
-
-  if (existingStartIndex !== -1 && existingEndIndex !== -1 && existingEndIndex > existingStartIndex) {
-    return `${normalizedContents.slice(0, existingStartIndex)}${linkSection}${normalizedContents.slice(existingEndIndex + endMarker.length).replace(/^\n*/u, "")}`.replace(/\n{3,}/gu, "\n\n");
-  }
-
-  if (normalizedContents.length === 0) {
-    return linkSection;
-  }
-
-  return `${normalizedContents}\n\n${linkSection}`;
-}
-
+/**
+ * Removes the generated rn-mt guide link section from a README during cleanup
+ * or handoff.
+ */
 export function removeRepoLocalGuideLinkFromReadme(readmeContents: string) {
   const normalizedContents = readmeContents.trimEnd();
   const startMarker = "<!-- rn-mt:guide-link:start -->";
@@ -276,85 +109,56 @@ export function removeRepoLocalGuideLinkFromReadme(readmeContents: string) {
   const after = normalizedContents
     .slice(existingEndIndex + endMarker.length)
     .trimStart();
-  const nextContents = [before, after].filter((segment) => segment.length > 0).join("\n\n");
+  const nextContents = [before, after]
+    .filter((segment) => segment.length > 0)
+    .join("\n\n");
 
   return `${nextContents.trimEnd()}\n`;
 }
 
-function createReconstructionMetadataFile(
-  workspace: RnMtWorkspace,
-  defaultTenant: string,
-  movedFiles: RnMtConvertMovedFile[],
-  currentPathBySourcePath: Map<string, string>,
-  options: {
-    rootEntrySourcePaths: Set<string>;
-    bridgeConfigModulePath?: string | null;
-  },
-): RnMtSyncGeneratedFile {
-  const metadata: RnMtReconstructionMetadataFile = {
-    schemaVersion: 1,
-    tool: "rn-mt",
-    defaultTenant,
-    sharedRootPath: relative(workspace.rootDir, workspace.getSharedRootDir()),
-    currentRootPath: relative(workspace.rootDir, workspace.getCurrentRootDir()),
-    entries: movedFiles
-      .map((file) => {
-        const currentPath = currentPathBySourcePath.get(file.sourcePath);
-        const originalPathBehavior: RnMtReconstructionOriginalPathBehavior =
-          options.rootEntrySourcePaths.has(file.sourcePath)
-            ? "replaced-with-root-wrapper"
-            : file.sourcePath === options.bridgeConfigModulePath
-              ? "replaced-with-host-config-bridge"
-              : "removed";
-
-        const entry = {
-          originalPath: relative(workspace.rootDir, file.sourcePath),
-          sharedPath: relative(workspace.rootDir, file.destinationPath),
-          originalPathBehavior,
-        };
-
-        return currentPath
-          ? {
-              ...entry,
-              currentPath: relative(workspace.rootDir, currentPath),
-            }
-          : entry;
-      })
-      .sort((left, right) => left.originalPath.localeCompare(right.originalPath)),
-  };
-
-  return {
-    path: join(workspace.rootDir, "rn-mt.generated.reconstruction.json"),
-    kind: "reconstruction-metadata",
-    contents: `${JSON.stringify(metadata, null, 2)}\n`,
-  };
-}
-
+/**
+ * Plans and materializes the repo restructuring performed by rn-mt convert.
+ */
 export class RnMtConvertModule {
+  /**
+   * Initializes the convert with its shared dependencies.
+   */
   constructor(private readonly dependencies: RnMtConvertModuleDependencies) {}
 
+  /**
+   * Builds the analyze module used to detect repo shape during conversion.
+   */
   private getAnalyzeModule() {
     return new RnMtAnalyzeModule({ workspace: this.dependencies.workspace });
   }
 
+  /**
+   * Detects the host language so generated wrappers and extension files use the
+   * right syntax.
+   */
   private getHostLanguage() {
-    return this.getAnalyzeModule().detectHostLanguage(this.dependencies.workspace.rootDir)
-      .language;
+    return this.getAnalyzeModule().detectHostLanguage(
+      this.dependencies.workspace.rootDir,
+    ).language;
   }
 
+  /**
+   * Runs the convert flow.
+   */
   run(options: RnMtConvertRunOptions): RnMtConvertResult {
     const manifest = options.manifest;
     const workspace = this.dependencies.workspace;
     const packageManager = this.getAnalyzeModule().run({
       scopeToProvidedRoot: true,
     }).repo.packageManager;
-    const appKind = this.getAnalyzeModule().detectAppKind(workspace.rootDir).kind;
+    const appKind = this.getAnalyzeModule().detectAppKind(
+      workspace.rootDir,
+    ).kind;
     const localPackages = getLocalRnMtPackagePlan(appKind);
     const aliasRules = getAliasRules(workspace);
-    const entryFiles = getConvertibleRootEntryFiles(workspace);
+    const entryFiles = this.getConvertibleRootEntryFiles();
     const packageJsonPath = join(workspace.rootDir, "package.json");
-    const bridgeConfigModulePath = resolveBridgeConfigModulePath(
-      workspace,
+    const bridgeConfigModulePath = this.resolveBridgeConfigModulePath(
       options.bridgeConfigModulePath,
     );
 
@@ -364,7 +168,9 @@ export class RnMtConvertModule {
       );
     }
 
-    if (entryFiles.some((entry) => entry.contents.startsWith(rootWrapperBanner))) {
+    if (
+      entryFiles.some((entry) => entry.contents.startsWith(rootWrapperBanner))
+    ) {
       throw new Error(
         "Convert has already been applied to this repo. Root entry wrappers are already CLI-owned.",
       );
@@ -375,18 +181,26 @@ export class RnMtConvertModule {
       destinationPath: join(workspace.getSharedRootDir(), entry.fileName),
       contents: entry.contents,
     }));
-    const categoryMovedFiles = getConvertCategoryFilePaths(workspace)
-      .filter((sourcePath) => !entryFiles.some((entry) => entry.path === sourcePath))
+    const categoryMovedFiles = this.getConvertCategoryFilePaths()
+      .filter(
+        (sourcePath) => !entryFiles.some((entry) => entry.path === sourcePath),
+      )
       .map((sourcePath) => ({
         sourcePath,
         destinationPath: join(
           workspace.getSharedRootDir(),
           sourcePath.startsWith(join(workspace.rootDir, "src"))
-            ? join("src", sourcePath.slice(join(workspace.rootDir, "src").length + 1))
+            ? join(
+                "src",
+                sourcePath.slice(join(workspace.rootDir, "src").length + 1),
+              )
             : sourcePath.slice(workspace.rootDir.length + 1),
         ),
         contents: workspace.readText(sourcePath),
-        removeSourcePath: sourcePath === bridgeConfigModulePath ? false as const : true as const,
+        removeSourcePath:
+          sourcePath === bridgeConfigModulePath
+            ? (false as const)
+            : (true as const),
       }));
     const structuralMovedFiles = [...plannedMovedFiles, ...categoryMovedFiles];
     const rootEntrySourcePaths = new Set(entryFiles.map((entry) => entry.path));
@@ -432,7 +246,9 @@ export class RnMtConvertModule {
       movedFiles.push({
         sourcePath: rootReadmePath,
         destinationPath: rootReadmePath,
-        contents: addRepoLocalGuideLinkToReadme(workspace.readText(rootReadmePath)),
+        contents: this.addRepoLocalGuideLinkToReadme(
+          workspace.readText(rootReadmePath),
+        ),
       });
     }
 
@@ -454,15 +270,18 @@ export class RnMtConvertModule {
     );
 
     if (bridgeConfigModulePath) {
-      const bridgeMovedFile = movedFiles.find((file) => file.sourcePath === bridgeConfigModulePath);
+      const bridgeMovedFile = movedFiles.find(
+        (file) => file.sourcePath === bridgeConfigModulePath,
+      );
 
       if (!bridgeMovedFile) {
-        throw new Error(`Bridge config module could not be prepared for conversion: ${bridgeConfigModulePath}`);
+        throw new Error(
+          `Bridge config module could not be prepared for conversion: ${bridgeConfigModulePath}`,
+        );
       }
 
       generatedFiles.push(
-        createHostConfigBridgeFile(
-          workspace,
+        this.createHostConfigBridgeFile(
           bridgeMovedFile.sourcePath,
           bridgeMovedFile.destinationPath,
           bridgeMovedFile.contents,
@@ -473,11 +292,10 @@ export class RnMtConvertModule {
     generatedFiles.push({
       path: join(workspace.rootDir, "rn-mt.generated.README.md"),
       kind: "repo-readme",
-      contents: createRepoLocalGuideContents(),
+      contents: this.createRepoLocalGuideContents(),
     });
     generatedFiles.push(
-      createReconstructionMetadataFile(
-        workspace,
+      this.createReconstructionMetadataFile(
         manifest.defaults.tenant,
         structuralMovedFiles,
         currentPathBySourcePath,
@@ -487,9 +305,13 @@ export class RnMtConvertModule {
         },
       ),
     );
-    const ownershipMetadata = createOwnershipMetadataFile(workspace, generatedFiles, {
-      fileName: "rn-mt.generated.convert.ownership.json",
-    });
+    const ownershipMetadata = createOwnershipMetadataFile(
+      workspace,
+      generatedFiles,
+      {
+        fileName: "rn-mt.generated.convert.ownership.json",
+      },
+    );
     const hostLanguage = this.getHostLanguage();
     const userOwnedFiles = [
       {
@@ -497,7 +319,7 @@ export class RnMtConvertModule {
           workspace.getExtensionsRootDir(),
           hostLanguage === "typescript" ? "index.ts" : "index.js",
         ),
-        contents: createUserOwnedExtensionContents(hostLanguage),
+        contents: this.createUserOwnedExtensionContents(hostLanguage),
       },
     ];
 
@@ -512,9 +334,15 @@ export class RnMtConvertModule {
     };
   }
 
-  planCurrentImportsCodemod(options: {
-    manifest?: RnMtManifest;
-  } = {}): RnMtCodemodResult {
+  /**
+   * Plans the codemod that rewrites shared-source imports to the generated
+   * current surface after conversion.
+   */
+  planCurrentImportsCodemod(
+    options: {
+      manifest?: RnMtManifest;
+    } = {},
+  ): RnMtCodemodResult {
     const workspace = this.dependencies.workspace;
     const aliasRules = getAliasRules(workspace);
     const sharedFiles = listSharedFiles(workspace);
@@ -559,6 +387,341 @@ export class RnMtConvertModule {
       rootDir: workspace.rootDir,
       codemod: "current-imports",
       changes,
+    };
+  }
+
+  /**
+   * Checks whether test module file name for the convert flow.
+   */
+  private isTestModuleFileName(fileName: string) {
+    return /\.(test|spec)\.[^.]+$/u.test(fileName);
+  }
+
+  /**
+   * Returns convert category file paths for the convert flow.
+   */
+  private getConvertCategoryFilePaths() {
+    const workspace = this.dependencies.workspace;
+    const categoryFilePaths = new Set<string>();
+    const candidateBases = [workspace.rootDir, join(workspace.rootDir, "src")];
+
+    for (const basePath of candidateBases) {
+      if (!workspace.isDirectory(basePath)) {
+        continue;
+      }
+
+      for (const entry of readdirSync(basePath, {
+        withFileTypes: true,
+      }) as Dirent[]) {
+        if (basePath.endsWith("/src") && entry.name === "rn-mt") {
+          continue;
+        }
+
+        const entryPath = join(basePath, entry.name);
+
+        if (
+          entry.isDirectory() &&
+          convertCategoryDirNames.includes(
+            entry.name as (typeof convertCategoryDirNames)[number],
+          )
+        ) {
+          for (const filePath of workspace.listFiles(entryPath)) {
+            categoryFilePaths.add(filePath);
+          }
+        }
+
+        if (
+          entry.isFile() &&
+          (convertCategoryDirNames.some(
+            (name) =>
+              entry.name === `${name}.ts` ||
+              entry.name === `${name}.tsx` ||
+              entry.name === `${name}.js` ||
+              entry.name === `${name}.jsx` ||
+              entry.name === `${name}.json`,
+          ) ||
+            this.isTestModuleFileName(entry.name))
+        ) {
+          categoryFilePaths.add(entryPath);
+        }
+      }
+    }
+
+    return [...categoryFilePaths].sort((left, right) =>
+      left.localeCompare(right),
+    );
+  }
+
+  /**
+   * Returns convertible root entry files for the convert flow.
+   */
+  private getConvertibleRootEntryFiles() {
+    const workspace = this.dependencies.workspace;
+
+    return convertibleRootEntryFiles
+      .map((fileName) => {
+        const path = join(workspace.rootDir, fileName);
+
+        if (!workspace.exists(path)) {
+          return null;
+        }
+
+        return {
+          fileName,
+          path,
+          contents: workspace.readText(path),
+        };
+      })
+      .filter(
+        (
+          entry,
+        ): entry is {
+          fileName: (typeof convertibleRootEntryFiles)[number];
+          path: string;
+          contents: string;
+        } => entry !== null,
+      );
+  }
+
+  /**
+   * Checks whether supported bridge config path for the convert flow.
+   */
+  private isSupportedBridgeConfigPath(sourcePath: string) {
+    const relativeSourcePath = relative(
+      this.dependencies.workspace.rootDir,
+      sourcePath,
+    ).replace(/\\/gu, "/");
+    const pathSegments = relativeSourcePath.split("/");
+    const fileName = pathSegments[pathSegments.length - 1] ?? "";
+
+    return (
+      pathSegments.includes("config") ||
+      /^config\.(ts|tsx|js|jsx|json)$/u.test(fileName)
+    );
+  }
+
+  /**
+   * Resolves bridge config module path for the convert flow.
+   */
+  private resolveBridgeConfigModulePath(
+    selectedPath: string | null | undefined,
+  ) {
+    const workspace = this.dependencies.workspace;
+
+    if (!selectedPath) {
+      return null;
+    }
+
+    const candidatePath = selectedPath.startsWith(workspace.rootDir)
+      ? selectedPath
+      : join(workspace.rootDir, selectedPath);
+    const relativeSelectedPath = relative(workspace.rootDir, candidatePath);
+
+    if (
+      relativeSelectedPath.startsWith("..") ||
+      !workspace.isFile(candidatePath)
+    ) {
+      throw new Error(`Bridge config module not found: ${candidatePath}`);
+    }
+
+    if (
+      !isFacadeSourceFile(candidatePath) ||
+      !this.isSupportedBridgeConfigPath(candidatePath)
+    ) {
+      throw new Error(
+        `Bridge mode only supports explicit host config modules. Received: ${candidatePath}`,
+      );
+    }
+
+    return candidatePath;
+  }
+
+  /**
+   * Creates host config bridge file for the convert flow.
+   */
+  private createHostConfigBridgeFile(
+    sourcePath: string,
+    movedDestinationPath: string,
+    sourceContents: string,
+  ): RnMtSyncGeneratedFile {
+    const workspace = this.dependencies.workspace;
+    const sharedRootDir = workspace.getSharedRootDir();
+    const relativeSharedPath = movedDestinationPath.slice(
+      sharedRootDir.length + 1,
+    );
+    const currentFacadePath = join(
+      workspace.getCurrentRootDir(),
+      relativeSharedPath,
+    );
+    const importPath = normalizeImportPath(
+      stripSupportedSourceExtension(
+        relative(dirname(sourcePath), currentFacadePath),
+      ),
+    );
+
+    return {
+      path: sourcePath,
+      kind: "host-config-bridge",
+      contents: createBridgeFacadeModuleContents(importPath, sourceContents),
+    };
+  }
+
+  /**
+   * Creates user owned extension contents for the convert flow.
+   */
+  private createUserOwnedExtensionContents(hostLanguage: RnMtHostLanguage) {
+    return [
+      "// User-owned rn-mt extension module. Safe to edit.",
+      "// Add custom helpers here instead of editing CLI-owned generated files.",
+      hostLanguage === "typescript"
+        ? "export const rnMtExtensions = {} as const;"
+        : "export const rnMtExtensions = {};",
+      "",
+    ].join("\n");
+  }
+
+  /**
+   * Creates repo local guide contents for the convert flow.
+   */
+  private createRepoLocalGuideContents() {
+    return [
+      "# rn-mt Ownership and Handoff Guide",
+      "",
+      "## CLI-owned files",
+      "",
+      "Do not edit rn-mt generated files directly. Re-run `rn-mt convert`, `rn-mt sync`, or other rn-mt commands instead.",
+      "",
+      "Common CLI-owned paths in this repo:",
+      "",
+      "- Root wrapper files such as `App.tsx`, `App.js`, `index.ts`, or `index.js` after conversion",
+      "- `src/rn-mt/current/**` current facades",
+      "- `rn-mt.generated.convert.ownership.json`",
+      "- `rn-mt.generated.reconstruction.json`",
+      "- `rn-mt.generated.runtime.json`",
+      "- `rn-mt.generated.ownership.json`",
+      "- Generated native include files, Expo bridge files, and derived assets written by `rn-mt sync`",
+      "",
+      "## User-owned files",
+      "",
+      "Make product changes in the user-owned surfaces:",
+      "",
+      "- `rn-mt.config.json`",
+      "- `src/rn-mt/shared/**`",
+      "- `src/rn-mt/tenants/**`",
+      "- `src/rn-mt/extensions/**`",
+      "",
+      "Use `rn-mt override create <path>` when a shared file needs a tenant-specific override.",
+      "",
+      "## Handoff expectations",
+      "",
+      "A future `rn-mt handoff --tenant <id>` flow is expected to:",
+      "",
+      "- Create a new sibling output repo instead of mutating this workspace in place",
+      "- Remove rn-mt-specific machinery from the delivered tenant repo",
+      "- Strip git history by default and sanitize env files before delivery",
+      "- Depend on a healthy repo with clean sync output and a clean audit result",
+      "",
+    ].join("\n");
+  }
+
+  /**
+   * Creates repo local guide link section for the convert flow.
+   */
+  private createRepoLocalGuideLinkSection() {
+    return [
+      "<!-- rn-mt:guide-link:start -->",
+      "## rn-mt",
+      "",
+      "See [rn-mt ownership and handoff guide](./rn-mt.generated.README.md) for CLI-owned files, user-owned extension points, and handoff expectations.",
+      "<!-- rn-mt:guide-link:end -->",
+      "",
+    ].join("\n");
+  }
+
+  /**
+   * Injects or refreshes the README section that points developers at the
+   * generated rn-mt ownership guide.
+   */
+  private addRepoLocalGuideLinkToReadme(readmeContents: string) {
+    const linkSection = this.createRepoLocalGuideLinkSection();
+    const normalizedContents = readmeContents.trimEnd();
+    const startMarker = "<!-- rn-mt:guide-link:start -->";
+    const endMarker = "<!-- rn-mt:guide-link:end -->";
+    const existingStartIndex = normalizedContents.indexOf(startMarker);
+    const existingEndIndex = normalizedContents.indexOf(endMarker);
+
+    if (
+      existingStartIndex !== -1 &&
+      existingEndIndex !== -1 &&
+      existingEndIndex > existingStartIndex
+    ) {
+      return `${normalizedContents.slice(0, existingStartIndex)}${linkSection}${normalizedContents.slice(existingEndIndex + endMarker.length).replace(/^\n*/u, "")}`.replace(
+        /\n{3,}/gu,
+        "\n\n",
+      );
+    }
+
+    if (normalizedContents.length === 0) {
+      return linkSection;
+    }
+
+    return `${normalizedContents}\n\n${linkSection}`;
+  }
+
+  /**
+   * Creates reconstruction metadata file for the convert flow.
+   */
+  private createReconstructionMetadataFile(
+    defaultTenant: string,
+    movedFiles: RnMtConvertMovedFile[],
+    currentPathBySourcePath: Map<string, string>,
+    options: {
+      rootEntrySourcePaths: Set<string>;
+      bridgeConfigModulePath?: string | null;
+    },
+  ): RnMtSyncGeneratedFile {
+    const workspace = this.dependencies.workspace;
+    const metadata: RnMtReconstructionMetadataFile = {
+      schemaVersion: 1,
+      tool: "rn-mt",
+      defaultTenant,
+      sharedRootPath: relative(workspace.rootDir, workspace.getSharedRootDir()),
+      currentRootPath: relative(
+        workspace.rootDir,
+        workspace.getCurrentRootDir(),
+      ),
+      entries: movedFiles
+        .map((file) => {
+          const currentPath = currentPathBySourcePath.get(file.sourcePath);
+          const originalPathBehavior: RnMtReconstructionOriginalPathBehavior =
+            options.rootEntrySourcePaths.has(file.sourcePath)
+              ? "replaced-with-root-wrapper"
+              : file.sourcePath === options.bridgeConfigModulePath
+                ? "replaced-with-host-config-bridge"
+                : "removed";
+
+          const entry = {
+            originalPath: relative(workspace.rootDir, file.sourcePath),
+            sharedPath: relative(workspace.rootDir, file.destinationPath),
+            originalPathBehavior,
+          };
+
+          return currentPath
+            ? {
+                ...entry,
+                currentPath: relative(workspace.rootDir, currentPath),
+              }
+            : entry;
+        })
+        .sort((left, right) =>
+          left.originalPath.localeCompare(right.originalPath),
+        ),
+    };
+
+    return {
+      path: join(workspace.rootDir, "rn-mt.generated.reconstruction.json"),
+      kind: "reconstruction-metadata",
+      contents: `${JSON.stringify(metadata, null, 2)}\n`,
     };
   }
 }
