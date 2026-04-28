@@ -1,0 +1,23 @@
+{
+  "skill_name": "rn-mt-codebase-guide",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I changed convert and now examples:verify fails on one fixture. Use the repo skill to tell me where to look first and what command loop to run.",
+      "expected_output": "Identifies packages/core convert ownership, the example verifier script, and recommends the build plus examples:verify loop with a narrow fixture-first debug path.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "I need to fix a docs deployment issue in rn-mt. Tell me what files own the docs routes, the docs shell, and the GitHub Pages behavior.",
+      "expected_output": "Points to apps/docs/lib/docs.ts, apps/docs/lib/page-route.tsx, apps/docs/components/docs-shell.tsx, apps/docs/next.config.mjs, and .github/workflows/docs-pages.yml.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "I am debugging a target resolution bug where sync writes the wrong runtime values. Tell me which modules, generated files, and commands matter in this repo.",
+      "expected_output": "Points to manifest and sync modules, runtime artifact files, target set plus sync reproduction commands, and the current/shared/tenants model.",
+      "files": []
+    }
+  ]
+}

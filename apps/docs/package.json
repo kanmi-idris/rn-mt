@@ -1,0 +1,32 @@
+{
+  "name": "@rn-mt/docs",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Deployable documentation site for rn-mt.",
+  "type": "module",
+  "scripts": {
+    "build": "next build",
+    "clean": "rimraf .next",
+    "dev": "next dev",
+    "lint": "tsc --noEmit",
+    "start": "next start",
+    "typecheck": "next typegen && tsc --noEmit"
+  },
+  "dependencies": {
+    "gray-matter": "^4.0.3",
+    "next": "^15.5.3",
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
+    "react-markdown": "^10.1.0",
+    "react-syntax-highlighter": "^15.6.1",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@types/react-syntax-highlighter": "^15.5.13",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.2"
+  }
+}

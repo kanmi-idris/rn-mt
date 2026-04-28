@@ -21,6 +21,10 @@ It is designed to convert a single-tenant mobile app into a manifest-driven mult
 This repository is actively being built issue by issue against the agreed product architecture and milestone plan.
 
 - The full product PRD lives in `docs/issues/0001-rn-mt-prd.md`.
+- The simplest detailed implementation guide lives in `docs/package-guide.md`.
+- The docs entrypoint lives in `docs/README.md`.
+- The deployable docs site lives in `apps/docs/README.md`.
+- The docs site is configured to deploy as a GitHub Pages project site.
 - The concrete package and deep-module map lives in `docs/architecture.md`.
 - The beginner-friendly design decisions handbook lives in `docs/design-decisions-handbook.md`.
 - The domain glossary lives in `UBIQUITOUS_LANGUAGE.md`.
