@@ -1,15 +1,15 @@
 {
   "/_not-found/page": "/_not-found",
-  "/architecture/page": "/architecture",
   "/command-reference/page": "/command-reference",
-  "/agent-skill/page": "/agent-skill",
-  "/convert-an-app/page": "/convert-an-app",
-  "/contributing/page": "/contributing",
-  "/introduction/page": "/introduction",
-  "/get-started/page": "/get-started",
+  "/architecture/page": "/architecture",
   "/examples/page": "/examples",
-  "/page": "/",
+  "/agent-skill/page": "/agent-skill",
+  "/contributing/page": "/contributing",
+  "/convert-an-app/page": "/convert-an-app",
+  "/get-started/page": "/get-started",
   "/troubleshooting/page": "/troubleshooting",
-  "/workflow-hooks/page": "/workflow-hooks",
-  "/targets-and-sync/page": "/targets-and-sync"
+  "/page": "/",
+  "/introduction/page": "/introduction",
+  "/targets-and-sync/page": "/targets-and-sync",
+  "/workflow-hooks/page": "/workflow-hooks"
 }
