@@ -160,11 +160,11 @@ export class RnMtCliTenancyCommands {
       const generatedFiles = result.generatedFiles.map((file) => {
         const changed =
           !this.context.fileExists(file.path) ||
-          this.context.readFile(file.path) !== file.contents;
+          this.context.files.readPathContents(file.path) !== file.contents;
 
         if (changed) {
           this.context.files.ensureParentDir(file.path);
-          this.context.writeFile(file.path, file.contents);
+          this.context.files.writePathContents(file.path, file.contents);
         }
 
         return {

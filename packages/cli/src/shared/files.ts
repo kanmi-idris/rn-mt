@@ -1,7 +1,7 @@
 /**
  * Provides shared files behavior for CLI execution.
  */
-import { cpSync, mkdirSync, statSync } from "node:fs";
+import { cpSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
 
 import { hashText } from "@rn-mt/shared";
@@ -28,6 +28,42 @@ export class RnMtCliFilesModule {
    */
   ensureParentDir(path: string) {
     mkdirSync(dirname(path), { recursive: true });
+  }
+
+  /**
+   * Reads file contents using raw bytes when needed for binary-safe compare and
+   * write operations.
+   */
+  readPathContents(path: string, options: { binary?: boolean } = {}) {
+    return options.binary ? readFileSync(path) : this.dependencies.readFile(path);
+  }
+
+  /**
+   * Writes file contents using raw bytes when needed for binary-safe convert
+   * and generated-file operations.
+   */
+  writePathContents(path: string, contents: string | Buffer) {
+    if (Buffer.isBuffer(contents)) {
+      writeFileSync(path, contents);
+      return;
+    }
+
+    this.dependencies.writeFile(path, contents);
+  }
+
+  /**
+   * Returns true when two file content payloads are byte-for-byte identical.
+   */
+  private contentsEqual(left: string | Buffer | null, right: string | Buffer) {
+    if (left === null) {
+      return false;
+    }
+
+    if (Buffer.isBuffer(left) && Buffer.isBuffer(right)) {
+      return left.equals(right);
+    }
+
+    return left === right;
   }
 
   /**
@@ -80,7 +116,7 @@ export class RnMtCliFilesModule {
   writeGeneratedFiles(
     generatedFilesToWrite: Array<{
       path: string;
-      contents: string;
+      contents: string | Buffer;
       kind: string;
     }>,
     options: {
@@ -129,10 +165,11 @@ export class RnMtCliFilesModule {
 
     return generatedFilesToWrite.map((file) => {
       const fileExists = this.isReadableFile(file.path);
+      const expectsBinary = Buffer.isBuffer(file.contents);
       const currentContents = fileExists
-        ? this.dependencies.readFile(file.path)
+        ? this.readPathContents(file.path, { binary: expectsBinary })
         : null;
-      const changed = !fileExists || currentContents !== file.contents;
+      const changed = !fileExists || !this.contentsEqual(currentContents, file.contents);
 
       if (changed && fileExists && ownershipMetadataPath && ownershipRootDir) {
         if (file.path === ownershipMetadataPath) {
@@ -175,7 +212,7 @@ export class RnMtCliFilesModule {
 
       if (changed) {
         this.ensureParentDir(file.path);
-        this.dependencies.writeFile(file.path, file.contents);
+        this.writePathContents(file.path, file.contents);
       }
 
       return {

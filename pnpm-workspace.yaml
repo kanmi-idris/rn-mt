@@ -1,2 +1,4 @@
 packages:
   - packages/*
+  - examples/*
+  - tests/tmp/examples/*

@@ -9,4 +9,8 @@ export interface RnMtExpoTargetContext {
   identity: RnMtRuntimeIdentity;
   runtimeConfigPath: string;
   iconPath?: string;
+  expo?: {
+    slug?: string;
+    scheme?: string | string[];
+  };
 }

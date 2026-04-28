@@ -37,13 +37,26 @@ export class RnMtCliProjectConvertCommand {
         bridgeConfigModulePath,
       });
       const movedFiles = result.movedFiles.map((file) => {
+        const expectsBinary = Buffer.isBuffer(file.contents);
+        const existingContents = this.context.files.isReadableFile(
+          file.destinationPath,
+        )
+          ? this.context.files.readPathContents(file.destinationPath, {
+              binary: expectsBinary,
+            })
+          : null;
         const changed =
-          !this.context.files.isReadableFile(file.destinationPath) ||
-          this.context.readFile(file.destinationPath) !== file.contents;
+          existingContents === null ||
+          (Buffer.isBuffer(existingContents) && Buffer.isBuffer(file.contents)
+            ? !existingContents.equals(file.contents)
+            : existingContents !== file.contents);
 
         if (changed) {
           this.context.files.ensureParentDir(file.destinationPath);
-          this.context.writeFile(file.destinationPath, file.contents);
+          this.context.files.writePathContents(
+            file.destinationPath,
+            file.contents,
+          );
         }
 
         if (

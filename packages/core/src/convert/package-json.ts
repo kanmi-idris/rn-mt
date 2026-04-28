@@ -1,7 +1,7 @@
 /**
  * Builds package.json mutations needed by converted repos.
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -20,17 +20,47 @@ interface RnMtPackageJsonLike {
  * local rn-mt packages.
  */
 export function getRnMtPackageVersion() {
-  const packageJsonPath = join(
+  const packageJsonPath = findPackageJsonPath(
     dirname(fileURLToPath(import.meta.url)),
-    "..",
-    "..",
-    "package.json",
+    "@rn-mt/core",
   );
   const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
     version?: string;
   };
 
   return packageJson.version ?? "0.1.0";
+}
+
+/**
+ * Walks upward from the current module until it finds the owning package.json
+ * for the expected package name.
+ */
+function findPackageJsonPath(startDir: string, expectedPackageName: string) {
+  let currentDir = startDir;
+
+  while (true) {
+    const candidatePath = join(currentDir, "package.json");
+
+    if (existsSync(candidatePath)) {
+      const candidatePackageJson = JSON.parse(
+        readFileSync(candidatePath, "utf8"),
+      ) as { name?: string };
+
+      if (candidatePackageJson.name === expectedPackageName) {
+        return candidatePath;
+      }
+    }
+
+    const parentDir = dirname(currentDir);
+
+    if (parentDir === currentDir) {
+      throw new Error(
+        `Unable to locate package.json for ${expectedPackageName}.`,
+      );
+    }
+
+    currentDir = parentDir;
+  }
 }
 
 /**

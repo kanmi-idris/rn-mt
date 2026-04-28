@@ -1,0 +1,26 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true
+  },
+  "include": [
+    "App.tsx",
+    "index.js",
+    "__tests__/**/*",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.js",
+    "src/**/*.jsx"
+  ],
+  "exclude": [
+    "android",
+    "ios",
+    "cli.flow.js",
+    "cli.js",
+    "lib",
+    "scripts",
+    "node_modules"
+  ]
+}

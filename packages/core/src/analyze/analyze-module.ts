@@ -82,6 +82,22 @@ export class RnMtAnalyzeModule {
   }
 
   /**
+   * Detects whether package scripts point at the React Native CLI even when
+   * native folders are not present at the repo root.
+   */
+  private hasReactNativeWorkflowScripts(
+    scripts: Record<string, string> | undefined,
+  ) {
+    if (!scripts) {
+      return false;
+    }
+
+    return ["start", "android", "ios"].some((scriptName) =>
+      scripts[scriptName]?.includes("react-native"),
+    );
+  }
+
+  /**
    * Detects app kind for the analyze flow.
    */
   detectAppKind(rootDir: string): RnMtBaselineAnalyzeReport["repo"]["app"] {
@@ -90,19 +106,31 @@ export class RnMtAnalyzeModule {
     const appJsonPath = join(rootDir, "app.json");
     const appConfigJsPath = join(rootDir, "app.config.js");
     const appConfigTsPath = join(rootDir, "app.config.ts");
+    const appRoutesPath = join(rootDir, "app");
     const iosPath = join(rootDir, "ios");
     const androidPath = join(rootDir, "android");
+    let hasExpoDependency = false;
+    let hasExpoRouterEntry = false;
     let hasReactNativeDependency = false;
+    let hasReactNativeWorkflowScripts = false;
 
     if (this.dependencies.workspace.exists(packageJsonPath)) {
       const packageJson = this.dependencies.workspace.readJson<{
         dependencies?: Record<string, string>;
         devDependencies?: Record<string, string>;
         name?: string;
+        main?: string;
+        scripts?: Record<string, string>;
       }>(packageJsonPath);
 
       if (packageJson.dependencies?.expo || packageJson.devDependencies?.expo) {
+        hasExpoDependency = true;
         evidence.push("package.json includes expo dependency");
+      }
+
+      if (packageJson.main === "expo-router/entry") {
+        hasExpoRouterEntry = true;
+        evidence.push('package.json main is "expo-router/entry"');
       }
 
       if (
@@ -111,6 +139,10 @@ export class RnMtAnalyzeModule {
       ) {
         hasReactNativeDependency = true;
       }
+
+      hasReactNativeWorkflowScripts = this.hasReactNativeWorkflowScripts(
+        packageJson.scripts,
+      );
     }
 
     if (this.dependencies.workspace.exists(appJsonPath)) {
@@ -125,7 +157,11 @@ export class RnMtAnalyzeModule {
       evidence.push("app.config.ts present");
     }
 
-    const hasExpoSignals = evidence.length > 0;
+    if (this.dependencies.workspace.exists(appRoutesPath)) {
+      evidence.push("app directory present");
+    }
+
+    const hasExpoSignals = hasExpoDependency || hasExpoRouterEntry;
     const hasNativeFolders =
       this.dependencies.workspace.exists(iosPath) ||
       this.dependencies.workspace.exists(androidPath);
@@ -208,6 +244,19 @@ export class RnMtAnalyzeModule {
       evidence.push("package.json includes react-native dependency");
     }
 
+    if (hasReactNativeDependency && hasReactNativeWorkflowScripts) {
+      evidence.push("react-native workflow scripts present");
+
+      return {
+        kind: "bare-react-native",
+        candidates: ["bare-react-native"],
+        evidence,
+        remediation: [
+          "Native ios/android folders are absent, so platform-specific sync and doctor checks stay limited until those folders exist.",
+        ],
+      };
+    }
+
     return {
       kind: "unknown",
       candidates: ["unknown"],
@@ -237,6 +286,13 @@ export class RnMtAnalyzeModule {
     }
 
     if (app.kind === "bare-react-native") {
+      if (app.remediation.length > 0) {
+        return {
+          tier: "near-supported",
+          reasonCodes: ["shell-bare-react-native"],
+        };
+      }
+
       return {
         tier: "supported",
         reasonCodes: ["modern-bare-react-native"],

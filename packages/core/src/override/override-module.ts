@@ -5,7 +5,11 @@ import { join, relative } from "node:path";
 
 import type { RnMtManifest } from "../manifest/types";
 import { RnMtWorkspace } from "../workspace";
-import { createCurrentFacadeFile } from "../convert";
+import {
+  createCurrentFacadeFile,
+  isFacadeSourceFile,
+  rebaseRelativeImportSpecifiers,
+} from "../convert";
 
 import type {
   RnMtOverrideCreateResult,
@@ -32,17 +36,34 @@ export class RnMtOverrideModule {
     const selectedSharedFile = this.resolveSharedOverrideSourcePath(
       options.selectedPath,
     );
+    const destinationPath = join(
+      this.dependencies.workspace.getTenantRootDir(
+        options.manifest.defaults.tenant,
+      ),
+      selectedSharedFile.relativePath,
+    );
+    const sourceContents = isFacadeSourceFile(selectedSharedFile.sourcePath)
+      ? this.dependencies.workspace.readText(selectedSharedFile.sourcePath)
+      : this.dependencies.workspace.readBuffer(selectedSharedFile.sourcePath);
     const copiedFile: RnMtOverrideCreatedFile = {
       sourcePath: selectedSharedFile.sourcePath,
-      destinationPath: join(
-        this.dependencies.workspace.getTenantRootDir(
-          options.manifest.defaults.tenant,
-        ),
-        selectedSharedFile.relativePath,
-      ),
-      contents: this.dependencies.workspace.readText(
-        selectedSharedFile.sourcePath,
-      ),
+      destinationPath,
+      contents: isFacadeSourceFile(selectedSharedFile.sourcePath)
+        ? (() => {
+            if (Buffer.isBuffer(sourceContents)) {
+              throw new Error(
+                `Expected override source contents to be text: ${selectedSharedFile.sourcePath}`,
+              );
+            }
+
+            return rebaseRelativeImportSpecifiers(
+              this.dependencies.workspace,
+              selectedSharedFile.sourcePath,
+              destinationPath,
+              sourceContents,
+            );
+          })()
+        : sourceContents,
     };
 
     if (this.dependencies.workspace.exists(copiedFile.destinationPath)) {
@@ -60,7 +81,7 @@ export class RnMtOverrideModule {
           options.manifest.defaults.tenant,
           {
             path: copiedFile.sourcePath,
-            contents: copiedFile.contents,
+            contents: sourceContents,
           },
           {
             overrideFile: {

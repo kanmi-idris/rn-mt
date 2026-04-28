@@ -29,7 +29,7 @@ export interface RnMtHandoffPreflightResult {
 export interface RnMtHandoffFlattenedFile {
   sourcePath: string;
   destinationPath: string;
-  contents: string;
+  contents: string | Buffer;
 }
 
 export interface RnMtHandoffFlattenResult {

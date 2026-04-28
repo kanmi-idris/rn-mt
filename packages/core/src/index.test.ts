@@ -31,6 +31,18 @@ import { afterEach, describe, expect, it } from "vitest";
 
 const tempDirs: string[] = [];
 
+function asText(contents: string | Buffer | undefined) {
+  if (typeof contents === "string") {
+    return contents;
+  }
+
+  if (contents) {
+    return contents.toString("utf8");
+  }
+
+  return "null";
+}
+
 function getWorkspace(rootDir: string) {
   return new RnMtWorkspace({ rootDir });
 }
@@ -359,6 +371,44 @@ afterEach(() => {
   }
 });
 
+describe("RnMtWorkspace.readJson", () => {
+  it("parses JSONC-style config files with comments and trailing commas", () => {
+    const repoDir = createTempRepo("rn-mt-core-jsonc-");
+    const tsconfigPath = join(repoDir, "tsconfig.json");
+
+    writeFileSync(
+      tsconfigPath,
+      `{
+  // keep existing path aliases
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@/*": ["./*"],
+      "@components/*": ["./components/*"],
+    },
+  },
+}`,
+    );
+
+    expect(
+      getWorkspace(repoDir).readJson<{
+        compilerOptions: {
+          strict: boolean;
+          paths: Record<string, string[]>;
+        };
+      }>(tsconfigPath),
+    ).toEqual({
+      compilerOptions: {
+        strict: true,
+        paths: {
+          "@/*": ["./*"],
+          "@components/*": ["./components/*"],
+        },
+      },
+    });
+  });
+});
+
 describe("createBaselineAnalyzeReport", () => {
   it("reports root facts and package manager from packageManager field", () => {
     const repoDir = createTempRepo("rn-mt-core-report-");
@@ -616,6 +666,38 @@ describe("createBaselineAnalyzeReport", () => {
     });
   });
 
+  it("surfaces Expo Router entry evidence for router-based Expo repos", () => {
+    const repoDir = createTempRepo("rn-mt-core-expo-router-");
+
+    mkdirSync(join(repoDir, "ios"));
+    mkdirSync(join(repoDir, "android"));
+    mkdirSync(join(repoDir, "app"), { recursive: true });
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "expo-router-fixture",
+        main: "expo-router/entry",
+        dependencies: { expo: "~54.0.0" },
+      }),
+    );
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "RouterFixture" } }),
+    );
+
+    const report = createBaselineAnalyzeReport(repoDir);
+
+    expect(report.repo.app.kind).toBe("expo-prebuild");
+    expect(report.repo.app.evidence).toEqual([
+      "package.json includes expo dependency",
+      'package.json main is "expo-router/entry"',
+      "app.json present",
+      "app directory present",
+      "ios directory present",
+      "android directory present",
+    ]);
+  });
+
   it("does not classify bare native repos without Expo signals as Expo prebuild", () => {
     const repoDir = createTempRepo("rn-mt-core-bare-native-");
 
@@ -673,6 +755,50 @@ describe("createBaselineAnalyzeReport", () => {
     expect(report.repo.support).toEqual({
       tier: "unsupported",
       reasonCodes: ["unrecognized-app-shape"],
+    });
+    expect(report.repo.host).toEqual({
+      language: "javascript",
+      evidence: ["defaulted to javascript host files"],
+    });
+  });
+
+  it("classifies shell-style bare React Native repos when react-native scripts exist without root native folders", () => {
+    const repoDir = createTempRepo("rn-mt-core-bare-native-shell-");
+
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "native-shell-fixture",
+        scripts: {
+          start: "react-native start",
+          android: "react-native run-android",
+          ios: "react-native run-ios",
+        },
+        dependencies: { react: "19.0.0", "react-native": "0.76.0" },
+      }),
+    );
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ name: "Native Shell Fixture" }),
+    );
+
+    const report = createBaselineAnalyzeReport(repoDir);
+
+    expect(report.repo.app).toEqual({
+      kind: "bare-react-native",
+      candidates: ["bare-react-native"],
+      evidence: [
+        "app.json present",
+        "package.json includes react-native dependency",
+        "react-native workflow scripts present",
+      ],
+      remediation: [
+        "Native ios/android folders are absent, so platform-specific sync and doctor checks stay limited until those folders exist.",
+      ],
+    });
+    expect(report.repo.support).toEqual({
+      tier: "near-supported",
+      reasonCodes: ["shell-bare-react-native"],
     });
     expect(report.repo.host).toEqual({
       language: "javascript",
@@ -1013,6 +1139,12 @@ describe("tenant rename helpers", () => {
     mkdirSync(join(repoDir, "src", "rn-mt", "tenants", "demo-app", "theme"), {
       recursive: true,
     });
+    mkdirSync(
+      join(repoDir, "ios", "DemoApp.xcodeproj", "xcshareddata", "xcschemes"),
+      {
+        recursive: true,
+      },
+    );
     writeFileSync(
       join(repoDir, "src", "rn-mt", "shared", "theme", "branding.ts"),
       "export default { color: 'shared' };\n",
@@ -1032,6 +1164,36 @@ describe("tenant rename helpers", () => {
     writeFileSync(
       join(repoDir, ".env.demo-app.dev"),
       "API_BASE_URL=https://demo.example.com\n",
+    );
+    writeFileSync(
+      join(repoDir, "ios", "rn-mt.generated.demo-app-dev.xcconfig"),
+      "// generated\n",
+    );
+    writeFileSync(
+      join(
+        repoDir,
+        "ios",
+        "DemoApp.xcodeproj",
+        "xcshareddata",
+        "xcschemes",
+        "DemoApp-Dev.xcscheme",
+      ),
+      "<Scheme />\n",
+    );
+    writeFileSync(
+      join(repoDir, "rn-mt.generated.reconstruction.json"),
+      JSON.stringify(
+        {
+          schemaVersion: 1,
+          tool: "rn-mt",
+          defaultTenant: "demo-app",
+          sharedRootPath: "src/rn-mt/shared",
+          currentRootPath: "src/rn-mt/current",
+          entries: [],
+        },
+        null,
+        2,
+      ) + "\n",
     );
 
     const manifest = parseManifest(
@@ -1078,6 +1240,32 @@ describe("tenant rename helpers", () => {
           fromPath: join(repoDir, ".env.demo-app.dev"),
           toPath: join(repoDir, ".env.acme-beta.dev"),
         },
+        {
+          fromPath: join(repoDir, "ios", "rn-mt.generated.demo-app-dev.xcconfig"),
+          toPath: join(
+            repoDir,
+            "ios",
+            "rn-mt.generated.acme-beta-dev.xcconfig",
+          ),
+        },
+        {
+          fromPath: join(
+            repoDir,
+            "ios",
+            "DemoApp.xcodeproj",
+            "xcshareddata",
+            "xcschemes",
+            "DemoApp-Dev.xcscheme",
+          ),
+          toPath: join(
+            repoDir,
+            "ios",
+            "DemoApp.xcodeproj",
+            "xcshareddata",
+            "xcschemes",
+            "AcmeBeta-Dev.xcscheme",
+          ),
+        },
       ]),
     );
     expect(result.generatedFiles).toEqual(
@@ -1095,6 +1283,11 @@ describe("tenant rename helpers", () => {
           contents: expect.stringContaining(
             "../../tenants/acme-beta/theme/branding",
           ),
+        }),
+        expect.objectContaining({
+          path: join(repoDir, "rn-mt.generated.reconstruction.json"),
+          kind: "reconstruction-metadata",
+          contents: expect.stringContaining('"defaultTenant": "acme-beta"'),
         }),
       ]),
     );
@@ -1647,7 +1840,7 @@ describe("handoff flatten helpers", () => {
             "logo.png",
           ),
           destinationPath: join(repoDir, "assets", "logo.png"),
-          contents: "binary",
+          contents: Buffer.from("binary"),
         }),
         expect.objectContaining({
           sourcePath: join(repoDir, "src", "rn-mt", "shared", "App.test.tsx"),
@@ -2196,6 +2389,11 @@ describe("convert helpers", () => {
           contents: expect.stringContaining("createRuntimeAccessors"),
         },
         {
+          path: join(repoDir, "app.config.ts"),
+          kind: "expo-config-bridge",
+          contents: expect.stringContaining("applyExpoTargetContext"),
+        },
+        {
           path: join(repoDir, "rn-mt.generated.convert.ownership.json"),
           kind: "ownership-metadata",
           contents: expect.stringContaining('"owner": "cli"'),
@@ -2236,6 +2434,912 @@ describe("convert helpers", () => {
         ].join("\n"),
       },
     ]);
+  });
+
+  it("converts Expo Router route trees without requiring root App or index entry files", () => {
+    const repoDir = createTempRepo("rn-mt-core-convert-router-");
+
+    mkdirSync(join(repoDir, "ios"));
+    mkdirSync(join(repoDir, "android"));
+    mkdirSync(join(repoDir, "app"), { recursive: true });
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "router-fixture",
+        main: "expo-router/entry",
+        dependencies: { expo: "~54.0.0" },
+      }),
+    );
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "RouterFixture" } }),
+    );
+    writeFileSync(
+      join(repoDir, "app", "_layout.tsx"),
+      "export default function Layout() { return null; }\n",
+    );
+    writeFileSync(
+      join(repoDir, "app", "index.tsx"),
+      "export default function Index() { return null; }\n",
+    );
+
+    const result = createConvertResult(repoDir, createConvertManifest(repoDir));
+
+    expect(result.movedFiles).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourcePath: join(repoDir, "app", "_layout.tsx"),
+          destinationPath: join(
+            repoDir,
+            "src",
+            "rn-mt",
+            "shared",
+            "app",
+            "_layout.tsx",
+          ),
+          removeSourcePath: false,
+        }),
+        expect.objectContaining({
+          sourcePath: join(repoDir, "app", "index.tsx"),
+          destinationPath: join(
+            repoDir,
+            "src",
+            "rn-mt",
+            "shared",
+            "app",
+            "index.tsx",
+          ),
+          removeSourcePath: false,
+        }),
+      ]),
+    );
+    expect(result.generatedFiles).toEqual(
+      expect.arrayContaining([
+        {
+          path: join(repoDir, "app", "_layout.tsx"),
+          kind: "root-wrapper",
+          contents: [
+            "// Generated by rn-mt. CLI-owned wrapper. Do not edit directly.",
+            'export { default } from "../src/rn-mt/current/app/_layout";',
+            'export * from "../src/rn-mt/current/app/_layout";',
+            "",
+          ].join("\n"),
+        },
+        {
+          path: join(repoDir, "app", "index.tsx"),
+          kind: "root-wrapper",
+          contents: [
+            "// Generated by rn-mt. CLI-owned wrapper. Do not edit directly.",
+            'export { default } from "../src/rn-mt/current/app/index";',
+            'export * from "../src/rn-mt/current/app/index";',
+            "",
+          ].join("\n"),
+        },
+        {
+          path: join(repoDir, "src", "rn-mt", "current", "app", "_layout.tsx"),
+          kind: "current-facade",
+          contents: [
+            "// Generated by rn-mt. CLI-owned current facade. Do not edit directly.",
+            'export { default } from "../../shared/app/_layout";',
+            'export * from "../../shared/app/_layout";',
+            "",
+          ].join("\n"),
+        },
+      ]),
+    );
+  });
+
+  it("still generates current facades when the repo lives under a parent tests directory", () => {
+    const tempRoot = createTempRepo("rn-mt-core-convert-parent-tests-");
+    const repoDir = join(tempRoot, "tests", "sandbox-app");
+
+    mkdirSync(repoDir, { recursive: true });
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "fixture-app",
+        dependencies: { expo: "~52.0.0" },
+      }),
+    );
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      "export default function App() { return null; }\n",
+    );
+    writeFileSync(
+      join(repoDir, "index.js"),
+      "import { registerRootComponent } from 'expo';\nregisterRootComponent(App);\n",
+    );
+
+    const result = createConvertResult(repoDir, createConvertManifest(repoDir));
+
+    expect(result.generatedFiles).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: join(repoDir, "src", "rn-mt", "current", "App.tsx"),
+          kind: "current-facade",
+        }),
+        expect.objectContaining({
+          path: join(repoDir, "src", "rn-mt", "current", "index.js"),
+          kind: "current-facade",
+        }),
+      ]),
+    );
+  });
+
+  it("generates import-only current facades for moved files that do not export a module surface", () => {
+    const repoDir = createTempRepo("rn-mt-core-convert-side-effect-file-");
+
+    mkdirSync(join(repoDir, "utils"), { recursive: true });
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "fixture-app",
+        dependencies: { expo: "~52.0.0" },
+      }),
+    );
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      "export default function App() { return null; }\n",
+    );
+    writeFileSync(
+      join(repoDir, "index.js"),
+      "import { registerRootComponent } from 'expo';\nregisterRootComponent(App);\n",
+    );
+    writeFileSync(
+      join(repoDir, "utils", "api.tsx"),
+      [
+        "globalThis.__fixtureApiBootstrap = true;",
+        'console.log(\"bootstrapped api globals\");',
+        "",
+      ].join("\n"),
+    );
+
+    const result = createConvertResult(repoDir, createConvertManifest(repoDir));
+    const facade = result.generatedFiles.find(
+      (file) =>
+        file.path ===
+        join(repoDir, "src", "rn-mt", "current", "utils", "api.tsx"),
+    );
+
+    expect(facade).toEqual({
+      path: join(repoDir, "src", "rn-mt", "current", "utils", "api.tsx"),
+      kind: "current-facade",
+      contents: [
+        "// Generated by rn-mt. CLI-owned current facade. Do not edit directly.",
+        'import "../../shared/utils/api";',
+        "",
+      ].join("\n"),
+    });
+  });
+
+  it("retargets fully converted tsconfig path aliases to the current facade surface", () => {
+    const repoDir = createTempRepo("rn-mt-core-convert-tsconfig-aliases-");
+
+    mkdirSync(join(repoDir, "config"), { recursive: true });
+    mkdirSync(join(repoDir, "theme"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "screens"), { recursive: true });
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "fixture-app",
+        dependencies: { expo: "~52.0.0" },
+      }),
+    );
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
+    writeFileSync(
+      join(repoDir, "tsconfig.json"),
+      JSON.stringify(
+        {
+          compilerOptions: {
+            baseUrl: ".",
+            paths: {
+              "@app/*": ["src/*"],
+              "@config/*": ["config/*"],
+              "@theme/*": ["theme/*"],
+            },
+          },
+        },
+        null,
+        2,
+      ),
+    );
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      [
+        'import { HomeScreen } from "@app/screens/HomeScreen";',
+        "",
+        "export default function App() {",
+        "  return <HomeScreen />;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(repoDir, "index.js"),
+      "import { registerRootComponent } from 'expo';\nregisterRootComponent(App);\n",
+    );
+    writeFileSync(
+      join(repoDir, "src", "screens", "HomeScreen.tsx"),
+      [
+        'import { brandConfig } from "@config/brand";',
+        'import { tokens } from "@theme/tokens";',
+        "",
+        "export function HomeScreen() {",
+        "  return brandConfig && tokens ? null : null;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(repoDir, "config", "brand.ts"),
+      "export const brandConfig = { displayName: 'Fixture App' };\n",
+    );
+    writeFileSync(
+      join(repoDir, "theme", "tokens.ts"),
+      "export const tokens = { colors: { background: '#fff' } };\n",
+    );
+
+    const result = createConvertResult(repoDir, createConvertManifest(repoDir));
+    const tsconfigFile = result.movedFiles.find(
+      (file) => file.destinationPath === join(repoDir, "tsconfig.json"),
+    );
+
+    expect(tsconfigFile).toBeDefined();
+    expect(JSON.parse(asText(tsconfigFile?.contents))).toEqual({
+      compilerOptions: {
+        baseUrl: ".",
+        paths: {
+          "@app/*": ["src/rn-mt/current/src/*"],
+          "@config/*": ["src/rn-mt/current/config/*"],
+          "@theme/*": ["src/rn-mt/current/theme/*"],
+        },
+      },
+    });
+  });
+
+  it("converts common root source directories and retargets their aliases to current", () => {
+    const repoDir = createTempRepo("rn-mt-core-convert-root-source-dirs-");
+
+    mkdirSync(join(repoDir, "components"), { recursive: true });
+    mkdirSync(join(repoDir, "hooks"), { recursive: true });
+    mkdirSync(join(repoDir, "navigators"), { recursive: true });
+    mkdirSync(join(repoDir, "screens"), { recursive: true });
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "fixture-app",
+        dependencies: { expo: "~52.0.0" },
+      }),
+    );
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
+    writeFileSync(
+      join(repoDir, "tsconfig.json"),
+      JSON.stringify(
+        {
+          compilerOptions: {
+            baseUrl: ".",
+            paths: {
+              "@components/*": ["components/*"],
+              "@hooks/*": ["hooks/*"],
+              "@navigators/*": ["navigators/*"],
+              "@screens/*": ["screens/*"],
+            },
+          },
+        },
+        null,
+        2,
+      ),
+    );
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      [
+        'import RootNavigator from "@navigators/RootNavigator";',
+        "",
+        "export default function App() {",
+        "  return <RootNavigator />;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(repoDir, "navigators", "RootNavigator.tsx"),
+      [
+        'import { useBrandTheme } from "@hooks/useBrandTheme";',
+        'import { HomeScreen } from "@screens/HomeScreen";',
+        "",
+        "export default function RootNavigator() {",
+        "  return useBrandTheme() ? <HomeScreen /> : <HomeScreen />;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(repoDir, "hooks", "useBrandTheme.ts"),
+      [
+        'import { BrandBanner } from "@components/BrandBanner";',
+        "",
+        "export function useBrandTheme() {",
+        "  return Boolean(BrandBanner);",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(repoDir, "components", "BrandBanner.tsx"),
+      "export function BrandBanner() { return null; }\n",
+    );
+    writeFileSync(
+      join(repoDir, "screens", "HomeScreen.tsx"),
+      "export function HomeScreen() { return null; }\n",
+    );
+
+    const result = createConvertResult(repoDir, createConvertManifest(repoDir));
+    const tsconfigFile = result.movedFiles.find(
+      (file) => file.destinationPath === join(repoDir, "tsconfig.json"),
+    );
+    const appSharedFile = result.movedFiles.find(
+      (file) =>
+        file.destinationPath === join(repoDir, "src", "rn-mt", "shared", "App.tsx"),
+    );
+
+    expect(result.movedFiles).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          destinationPath: join(
+            repoDir,
+            "src",
+            "rn-mt",
+            "shared",
+            "components",
+            "BrandBanner.tsx",
+          ),
+        }),
+        expect.objectContaining({
+          destinationPath: join(
+            repoDir,
+            "src",
+            "rn-mt",
+            "shared",
+            "hooks",
+            "useBrandTheme.ts",
+          ),
+        }),
+        expect.objectContaining({
+          destinationPath: join(
+            repoDir,
+            "src",
+            "rn-mt",
+            "shared",
+            "navigators",
+            "RootNavigator.tsx",
+          ),
+        }),
+        expect.objectContaining({
+          destinationPath: join(
+            repoDir,
+            "src",
+            "rn-mt",
+            "shared",
+            "screens",
+            "HomeScreen.tsx",
+          ),
+        }),
+      ]),
+    );
+    expect(appSharedFile?.contents).toContain(
+      'import RootNavigator from "@navigators/RootNavigator";',
+    );
+    expect(appSharedFile?.contents).not.toContain(
+      'import RootNavigator from "../current/navigators/RootNavigator";',
+    );
+    expect(JSON.parse(asText(tsconfigFile?.contents))).toEqual({
+      compilerOptions: {
+        baseUrl: ".",
+        paths: {
+          "@components/*": ["src/rn-mt/current/components/*"],
+          "@hooks/*": ["src/rn-mt/current/hooks/*"],
+          "@navigators/*": ["src/rn-mt/current/navigators/*"],
+          "@screens/*": ["src/rn-mt/current/screens/*"],
+        },
+      },
+    });
+  });
+
+  it("rewrites broad root aliases inside moved shared files when the root alias target stays mixed", () => {
+    const repoDir = createTempRepo("rn-mt-core-convert-root-alias-rewrite-");
+
+    mkdirSync(join(repoDir, "components"), { recursive: true });
+    mkdirSync(join(repoDir, "services"), { recursive: true });
+    mkdirSync(join(repoDir, "types"), { recursive: true });
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "fixture-app",
+        dependencies: { expo: "~52.0.0" },
+      }),
+    );
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
+    writeFileSync(
+      join(repoDir, "tsconfig.json"),
+      JSON.stringify(
+        {
+          compilerOptions: {
+            baseUrl: ".",
+            paths: {
+              "@/*": ["./*"],
+            },
+          },
+        },
+        null,
+        2,
+      ),
+    );
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      [
+        'import { BrandBanner } from "@/components/BrandBanner";',
+        'import { logger } from "@/services/logger";',
+        'import type { IconProps } from "@/types/icon";',
+        "",
+        "const loadLogger = () => import(\"@/services/logger\");",
+        "",
+        "export default function App() {",
+        "  return BrandBanner && logger && loadLogger && (null as IconProps | null);",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(repoDir, "components", "BrandBanner.tsx"),
+      "export function BrandBanner() { return null; }\n",
+    );
+    writeFileSync(
+      join(repoDir, "services", "logger.ts"),
+      "export const logger = true;\n",
+    );
+    writeFileSync(
+      join(repoDir, "types", "icon.d.ts"),
+      "export type IconProps = { size?: number };\n",
+    );
+
+    const result = createConvertResult(repoDir, createConvertManifest(repoDir));
+    const appSharedFile = result.movedFiles.find(
+      (file) =>
+        file.destinationPath === join(repoDir, "src", "rn-mt", "shared", "App.tsx"),
+    );
+    const tsconfigFile = result.movedFiles.find(
+      (file) => file.destinationPath === join(repoDir, "tsconfig.json"),
+    );
+
+    expect(appSharedFile?.contents).toContain(
+      'import { BrandBanner } from "@/src/rn-mt/current/components/BrandBanner";',
+    );
+    expect(appSharedFile?.contents).toContain(
+      'import { logger } from "@/src/rn-mt/current/services/logger";',
+    );
+    expect(appSharedFile?.contents).toContain(
+      'import type { IconProps } from "@/src/rn-mt/current/types/icon";',
+    );
+    expect(appSharedFile?.contents).toContain(
+      'import("@/src/rn-mt/current/services/logger")',
+    );
+    expect(tsconfigFile).toBeUndefined();
+  });
+
+  it("removes TypeScript modules under assets paths while preserving binary assets", () => {
+    const repoDir = createTempRepo("rn-mt-core-convert-assets-modules-");
+
+    mkdirSync(join(repoDir, "assets", "icons"), { recursive: true });
+    mkdirSync(join(repoDir, "assets", "images"), { recursive: true });
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "fixture-app",
+        dependencies: { expo: "~52.0.0" },
+      }),
+    );
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      "export default function App() { return null; }\n",
+    );
+    writeFileSync(
+      join(repoDir, "assets", "icons", "BrandIcon.tsx"),
+      "export function BrandIcon() { return null; }\n",
+    );
+    writeFileSync(
+      join(repoDir, "assets", "images", "icon.png"),
+      Buffer.from([0, 1, 2, 3]),
+    );
+
+    const result = createConvertResult(repoDir, createConvertManifest(repoDir));
+    const iconModule = result.movedFiles.find(
+      (file) =>
+        file.sourcePath === join(repoDir, "assets", "icons", "BrandIcon.tsx"),
+    );
+    const binaryAsset = result.movedFiles.find(
+      (file) =>
+        file.sourcePath === join(repoDir, "assets", "images", "icon.png"),
+    );
+
+    expect(iconModule?.removeSourcePath).toBe(true);
+    expect(binaryAsset?.removeSourcePath).toBe(false);
+  });
+
+  it("converts convex source trees so root aliases can resolve through current", () => {
+    const repoDir = createTempRepo("rn-mt-core-convert-convex-");
+
+    mkdirSync(join(repoDir, "convex"), { recursive: true });
+    mkdirSync(join(repoDir, "services"), { recursive: true });
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "fixture-app",
+        dependencies: { expo: "~52.0.0" },
+      }),
+    );
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
+    writeFileSync(
+      join(repoDir, "tsconfig.json"),
+      JSON.stringify(
+        {
+          compilerOptions: {
+            baseUrl: ".",
+            paths: {
+              "@/*": ["./*"],
+            },
+          },
+        },
+        null,
+        2,
+      ),
+    );
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      [
+        'import { agentQuery } from "@/convex/agentQuery";',
+        "",
+        "export default function App() {",
+        "  return agentQuery ? null : null;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(repoDir, "convex", "agentQuery.ts"),
+      [
+        'import { logger } from "@/services/logger";',
+        "",
+        "export const agentQuery = logger;",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(repoDir, "services", "logger.ts"),
+      "export const logger = true;\n",
+    );
+
+    const result = createConvertResult(repoDir, createConvertManifest(repoDir));
+    const movedConvexFile = result.movedFiles.find(
+      (file) =>
+        file.destinationPath ===
+        join(repoDir, "src", "rn-mt", "shared", "convex", "agentQuery.ts"),
+    );
+
+    expect(movedConvexFile).toBeDefined();
+    expect(movedConvexFile?.contents).toContain(
+      'import { logger } from "@/src/rn-mt/current/services/logger";',
+    );
+  });
+
+  it("rewrites Babel module-resolver aliases when tsconfig paths are absent", () => {
+    const repoDir = createTempRepo("rn-mt-core-convert-babel-aliases-");
+
+    mkdirSync(join(repoDir, "src", "api", "queries"), { recursive: true });
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "fixture-app",
+        dependencies: { expo: "~52.0.0" },
+      }),
+    );
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
+    writeFileSync(
+      join(repoDir, "babel.config.js"),
+      [
+        "module.exports = function (api) {",
+        "  api.cache(true);",
+        "  return {",
+        "    plugins: [[\"module-resolver\", {",
+        "      alias: {",
+        '        "@api": "./src/api",',
+        '        "@apiConfig": "./apiConfig.ts",',
+        "      },",
+        "    }]],",
+        "  };",
+        "};",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      [
+        'import { useProfileQuery } from "@api/queries/userQueries";',
+        'import { client } from "@apiConfig";',
+        "",
+        "export default function App() {",
+        "  return useProfileQuery && client ? null : null;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(repoDir, "apiConfig.ts"),
+      "export const client = { get() {} };\n",
+    );
+    writeFileSync(
+      join(repoDir, "src", "api", "queries", "userQueries.ts"),
+      "export function useProfileQuery() { return true; }\n",
+    );
+
+    const result = createConvertResult(repoDir, createConvertManifest(repoDir));
+    const appSharedFile = result.movedFiles.find(
+      (file) =>
+        file.destinationPath === join(repoDir, "src", "rn-mt", "shared", "App.tsx"),
+    );
+
+    expect(appSharedFile?.contents).toContain(
+      'import { useProfileQuery } from "../current/src/api/queries/userQueries";',
+    );
+    expect(appSharedFile?.contents).toContain(
+      'import { client } from "../current/apiConfig";',
+    );
+  });
+
+  it("ignores hidden OS metadata files during convert planning", () => {
+    const repoDir = createTempRepo("rn-mt-core-convert-hidden-files-");
+
+    mkdirSync(join(repoDir, "src", "config"), { recursive: true });
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "fixture-app",
+        dependencies: { expo: "~52.0.0" },
+      }),
+    );
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      "export default function App() { return null; }\n",
+    );
+    writeFileSync(join(repoDir, ".DS_Store"), "root-metadata");
+    writeFileSync(join(repoDir, "src", "config", ".DS_Store"), "nested-metadata");
+    writeFileSync(
+      join(repoDir, "src", "config", "index.ts"),
+      "export const config = { brand: 'fixture' };\n",
+    );
+
+    const result = createConvertResult(repoDir, createConvertManifest(repoDir));
+
+    expect(
+      result.movedFiles.some(
+        (file) =>
+          file.sourcePath.endsWith(".DS_Store") ||
+          file.destinationPath.endsWith(".DS_Store"),
+      ),
+    ).toBe(false);
+    expect(
+      result.generatedFiles.some((file) => file.path.endsWith(".DS_Store")),
+    ).toBe(false);
+  });
+
+  it("rewrites exact tsconfig aliases to current facade paths inside moved sources", () => {
+    const repoDir = createTempRepo("rn-mt-core-convert-exact-aliases-");
+
+    mkdirSync(join(repoDir, "src", "navigators"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "types"), { recursive: true });
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "fixture-app",
+        dependencies: { expo: "~52.0.0" },
+      }),
+    );
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
+    writeFileSync(
+      join(repoDir, "tsconfig.json"),
+      JSON.stringify(
+        {
+          compilerOptions: {
+            baseUrl: ".",
+            paths: {
+              "@navigatorTypes": ["./src/types/navigatorTypes.ts"],
+            },
+          },
+        },
+        null,
+        2,
+      ),
+    );
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      [
+        'import { RootNavigator } from "./src/navigators/RootNavigator";',
+        "",
+        "export default function App() {",
+        "  return RootNavigator ? null : null;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(repoDir, "src", "types", "navigatorTypes.ts"),
+      "export type RootStackParamList = { Home: undefined };\n",
+    );
+    writeFileSync(
+      join(repoDir, "src", "navigators", "RootNavigator.tsx"),
+      [
+        'import type { RootStackParamList } from "@navigatorTypes";',
+        "",
+        "export const RootNavigator = {} as RootStackParamList;",
+        "",
+      ].join("\n"),
+    );
+
+    const result = createConvertResult(repoDir, createConvertManifest(repoDir));
+    const navigatorSharedFile = result.movedFiles.find(
+      (file) =>
+        file.destinationPath ===
+        join(
+          repoDir,
+          "src",
+          "rn-mt",
+          "shared",
+          "src",
+          "navigators",
+          "RootNavigator.tsx",
+        ),
+    );
+
+    expect(navigatorSharedFile?.contents).toContain(
+      'import type { RootStackParamList } from "@navigatorTypes";',
+    );
+  });
+
+  it("rewrites root src absolute imports inside moved nested files", () => {
+    const repoDir = createTempRepo("rn-mt-core-convert-root-src-imports-");
+
+    mkdirSync(join(repoDir, "src", "api", "queries"), { recursive: true });
+    mkdirSync(join(repoDir, "src", "types"), { recursive: true });
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "fixture-app",
+        dependencies: { expo: "~52.0.0" },
+      }),
+    );
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      [
+        'import { useSubjectQuery } from "./src/api/queries/subjectQueries";',
+        "",
+        "export default function App() {",
+        "  return useSubjectQuery ? null : null;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(repoDir, "src", "types", "subjectTypes.ts"),
+      "export interface SubjectResponse { id: string; }\n",
+    );
+    writeFileSync(
+      join(repoDir, "src", "api", "queries", "subjectQueries.ts"),
+      [
+        'import type { SubjectResponse } from "src/types/subjectTypes";',
+        "",
+        "export function useSubjectQuery(): SubjectResponse | null {",
+        "  return null;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+
+    const result = createConvertResult(repoDir, createConvertManifest(repoDir));
+    const querySharedFile = result.movedFiles.find(
+      (file) =>
+        file.destinationPath ===
+        join(
+          repoDir,
+          "src",
+          "rn-mt",
+          "shared",
+          "src",
+          "api",
+          "queries",
+          "subjectQueries.ts",
+        ),
+    );
+
+    expect(querySharedFile?.contents).toContain(
+      'import type { SubjectResponse } from "../../../../current/src/types/subjectTypes";',
+    );
+  });
+
+  it("preserves binary asset bytes when convert moves assets into shared and current", () => {
+    const repoDir = createTempRepo("rn-mt-core-convert-binary-assets-");
+    const iconBytes = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 255, 12]);
+
+    mkdirSync(join(repoDir, "assets"), { recursive: true });
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "fixture-app",
+        dependencies: { expo: "~52.0.0" },
+      }),
+    );
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp", icon: "./assets/icon.png" } }),
+    );
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      "export default function App() { return null; }\n",
+    );
+    writeFileSync(join(repoDir, "assets", "icon.png"), iconBytes);
+
+    const result = createConvertResult(repoDir, createConvertManifest(repoDir));
+    const movedIconFile = result.movedFiles.find(
+      (file) =>
+        file.destinationPath ===
+        join(repoDir, "src", "rn-mt", "shared", "assets", "icon.png"),
+    );
+    const currentIconFile = result.generatedFiles.find(
+      (file) =>
+        file.path ===
+        join(repoDir, "src", "rn-mt", "current", "assets", "icon.png"),
+    );
+
+    expect(Buffer.isBuffer(movedIconFile?.contents)).toBe(true);
+    expect(Buffer.isBuffer(currentIconFile?.contents)).toBe(true);
+    expect(movedIconFile?.contents).toEqual(iconBytes);
+    expect(currentIconFile?.contents).toEqual(iconBytes);
   });
 
   it("persists reconstruction metadata for moved sources, current facades, and root-wrapper behavior", () => {
@@ -2309,7 +3413,7 @@ describe("convert helpers", () => {
     expect(reconstructionMetadata?.path).toBe(
       join(repoDir, "rn-mt.generated.reconstruction.json"),
     );
-    expect(JSON.parse(reconstructionMetadata?.contents ?? "null")).toEqual({
+    expect(JSON.parse(asText(reconstructionMetadata?.contents))).toEqual({
       schemaVersion: 1,
       tool: "rn-mt",
       defaultTenant: "acme",
@@ -2331,7 +3435,7 @@ describe("convert helpers", () => {
           originalPath: "assets/logo.png",
           sharedPath: "src/rn-mt/shared/assets/logo.png",
           currentPath: "src/rn-mt/current/assets/logo.png",
-          originalPathBehavior: "removed",
+          originalPathBehavior: "preserved",
         },
         {
           originalPath: "index.js",
@@ -2642,7 +3746,7 @@ describe("convert helpers", () => {
             "assets",
             "logo.png",
           ),
-          removeSourcePath: true,
+          removeSourcePath: false,
         }),
         expect.objectContaining({
           sourcePath: join(repoDir, "App.test.tsx"),
@@ -2778,9 +3882,11 @@ describe("convert helpers", () => {
     });
     expect(
       JSON.parse(
-        result.generatedFiles.find(
-          (file) => file.kind === "reconstruction-metadata",
-        )?.contents ?? "null",
+        asText(
+          result.generatedFiles.find(
+            (file) => file.kind === "reconstruction-metadata",
+          )?.contents,
+        ),
       ),
     ).toEqual(
       expect.objectContaining({
@@ -2854,6 +3960,65 @@ describe("convert helpers", () => {
           "// Generated by rn-mt. CLI-owned current facade. Do not edit directly.",
           'export { default } from "../../tenants/acme/theme/index";',
           'export * from "../../tenants/acme/theme/index";',
+          "",
+        ].join("\n"),
+      },
+    ]);
+  });
+
+  it("re-bases relative current imports when a shared file is copied into a tenant override", () => {
+    const repoDir = createTempRepo("rn-mt-core-override-create-rebased-");
+
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "screens", "Home"), {
+      recursive: true,
+    });
+    mkdirSync(join(repoDir, "src", "rn-mt", "current", "assets"), {
+      recursive: true,
+    });
+    writeFileSync(
+      join(repoDir, "src", "rn-mt", "current", "assets", "Theme.tsx"),
+      "export const colors = {};\n",
+    );
+    writeFileSync(
+      join(repoDir, "src", "rn-mt", "shared", "screens", "Home", "index.tsx"),
+      [
+        'import { colors } from "../../../current/assets/Theme";',
+        "",
+        "export default colors;",
+        "",
+      ].join("\n"),
+    );
+
+    const result = createOverrideCreateResult(
+      repoDir,
+      createConvertManifest(repoDir),
+      "screens/Home/index.tsx",
+    );
+
+    expect(result.copiedFile.contents).toBe(
+      [
+        'import { colors } from "../../../../current/assets/Theme";',
+        "",
+        "export default colors;",
+        "",
+      ].join("\n"),
+    );
+    expect(result.generatedFiles).toEqual([
+      {
+        path: join(
+          repoDir,
+          "src",
+          "rn-mt",
+          "current",
+          "screens",
+          "Home",
+          "index.tsx",
+        ),
+        kind: "current-facade",
+        contents: [
+          "// Generated by rn-mt. CLI-owned current facade. Do not edit directly.",
+          'export { default } from "../../../tenants/acme/screens/Home/index";',
+          'export * from "../../../tenants/acme/screens/Home/index";',
           "",
         ].join("\n"),
       },
@@ -3199,7 +4364,7 @@ describe("sync helpers", () => {
       join(rootDir, "rn-mt.generated.ownership.json"),
     );
     expect(ownershipMetadata?.kind).toBe("ownership-metadata");
-    expect(JSON.parse(ownershipMetadata?.contents ?? "null")).toEqual({
+    expect(JSON.parse(asText(ownershipMetadata?.contents))).toEqual({
       schemaVersion: 1,
       tool: "rn-mt",
       owner: "cli",
@@ -3773,6 +4938,70 @@ describe("sync helpers", () => {
     );
     expect(targetXcconfig?.contents).toContain(
       'RN_MT_DISPLAY_NAME = "Keep Nexus (Staging)"',
+    );
+  });
+
+  it("preserves previously tracked platform artifacts when ownership metadata is regenerated", () => {
+    const repoDir = createTempRepo("rn-mt-core-sync-ownership-merge-");
+
+    mkdirSync(join(repoDir, "android", "app"), { recursive: true });
+    mkdirSync(join(repoDir, "ios", "KeepNexus.xcodeproj"), { recursive: true });
+    writeFileSync(join(repoDir, "android", "app", "build.gradle"), "android {}\n");
+
+    const manifest = parseManifest(
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: repoDir },
+        config: {
+          identity: {
+            appName: "Keep Nexus",
+            nativeId: "com.keep.nexus",
+          },
+        },
+        defaults: { tenant: "demo-app", environment: "staging" },
+        tenants: {
+          "demo-app": { displayName: "Demo App" },
+        },
+        environments: {
+          staging: { displayName: "Staging" },
+        },
+        platforms: {
+          ios: {},
+          android: {},
+        },
+      }),
+    );
+
+    const iosResult = createSyncResult(repoDir, manifest, {
+      tenant: "demo-app",
+      environment: "staging",
+      platform: "ios",
+    });
+
+    for (const file of iosResult.generatedFiles) {
+      mkdirSync(dirname(file.path), { recursive: true });
+      writeFileSync(file.path, file.contents);
+    }
+
+    const androidResult = createSyncResult(repoDir, manifest, {
+      tenant: "demo-app",
+      environment: "staging",
+      platform: "android",
+    });
+    const ownershipMetadata = androidResult.generatedFiles.find(
+      (file) => file.kind === "ownership-metadata",
+    );
+    const trackedArtifactPaths = JSON.parse(
+      asText(ownershipMetadata?.contents),
+    ).artifacts.map((artifact: { path: string }) => artifact.path);
+
+    expect(trackedArtifactPaths).toEqual(
+      expect.arrayContaining([
+        "ios/rn-mt.generated.current.xcconfig",
+        "ios/rn-mt.generated.demo-app-staging.xcconfig",
+        "android/app/rn-mt.generated.flavors.gradle",
+        "android/app/rn-mt.generated.identity.gradle",
+      ]),
     );
   });
 

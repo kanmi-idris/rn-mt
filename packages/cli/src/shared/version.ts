@@ -2,8 +2,8 @@
  * Provides shared version behavior for CLI execution.
  */
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
-import { readFileSync } from "node:fs";
+import { dirname, isAbsolute, join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
 
 import { RnMtCliWorkflowModule } from "./workflow";
 
@@ -29,11 +29,9 @@ export class RnMtCliVersionModule {
    * Returns cli package version for the version flow.
    */
   getCliPackageVersion() {
-    const packageJsonPath = join(
+    const packageJsonPath = this.findPackageJsonPath(
       dirname(fileURLToPath(import.meta.url)),
-      "..",
-      "..",
-      "package.json",
+      "@rn-mt/cli",
     );
     const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
       version?: string;
@@ -82,12 +80,17 @@ export class RnMtCliVersionModule {
       Pick<RnMtCliWorkspaceOverrides, "fileExists" | "readFile">
     >,
   ): RnMtCliVersionCompatibilityResult | null {
-    const localVersion = this.getRepoLocalCliVersion(cwd, options);
+    const localVersionSpecifier = this.getRepoLocalCliVersion(cwd, options);
 
-    if (!localVersion) {
+    if (!localVersionSpecifier) {
       return null;
     }
 
+    const localVersion = this.resolveRepoLocalCliVersion(
+      cwd,
+      localVersionSpecifier,
+      options,
+    );
     const globalVersion = this.getCliPackageVersion();
     const workflow =
       this.dependencies.workflow ??
@@ -123,5 +126,91 @@ export class RnMtCliVersionModule {
           : "Reinstall the repo-local rn-mt packages with the repo package manager after aligning versions.",
       ],
     };
+  }
+
+  /**
+   * Walks upward from the current module until it finds the owning package.json
+   * for the expected package name.
+   */
+  private findPackageJsonPath(startDir: string, expectedPackageName: string) {
+    let currentDir = startDir;
+
+    while (true) {
+      const candidatePath = join(currentDir, "package.json");
+
+      if (existsSync(candidatePath)) {
+        const candidatePackageJson = JSON.parse(
+          readFileSync(candidatePath, "utf8"),
+        ) as { name?: string };
+
+        if (candidatePackageJson.name === expectedPackageName) {
+          return candidatePath;
+        }
+      }
+
+      const parentDir = dirname(currentDir);
+
+      if (parentDir === currentDir) {
+        throw new Error(
+          `Unable to locate package.json for ${expectedPackageName}.`,
+        );
+      }
+
+      currentDir = parentDir;
+    }
+  }
+
+  /**
+   * Resolves a repo-local cli dependency spec into the actual linked package
+   * version when the repo uses a `link:` or `file:` reference.
+   */
+  private resolveRepoLocalCliVersion(
+    cwd: string,
+    versionSpecifier: string,
+    options: Required<
+      Pick<RnMtCliWorkspaceOverrides, "fileExists" | "readFile">
+    >,
+  ) {
+    const linkedPackageDir = this.resolveLinkedPackageDir(cwd, versionSpecifier);
+
+    if (!linkedPackageDir) {
+      return versionSpecifier;
+    }
+
+    const packageJsonPath = join(linkedPackageDir, "package.json");
+
+    if (!options.fileExists(packageJsonPath)) {
+      return versionSpecifier;
+    }
+
+    try {
+      const packageJson = JSON.parse(options.readFile(packageJsonPath)) as {
+        version?: string;
+      };
+
+      return packageJson.version ?? versionSpecifier;
+    } catch {
+      return versionSpecifier;
+    }
+  }
+
+  /**
+   * Resolves a local dependency spec to a package directory when the repo uses
+   * a link-based local reference instead of a published semver string.
+   */
+  private resolveLinkedPackageDir(cwd: string, versionSpecifier: string) {
+    const linkPrefix = versionSpecifier.startsWith("link:")
+      ? "link:"
+      : versionSpecifier.startsWith("file:")
+        ? "file:"
+        : null;
+
+    if (!linkPrefix) {
+      return null;
+    }
+
+    const linkedPath = versionSpecifier.slice(linkPrefix.length);
+
+    return isAbsolute(linkedPath) ? linkedPath : join(cwd, linkedPath);
   }
 }

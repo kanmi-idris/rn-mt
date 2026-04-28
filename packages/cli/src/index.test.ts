@@ -739,6 +739,61 @@ describe("cli analyze command", () => {
     expect(writeFile).toHaveBeenCalled();
   });
 
+  it("allows repo commands to proceed when the repo-local rn-mt cli is linked from the workspace package", () => {
+    const repoDir = createTempRepo("rn-mt-cli-version-linked-compatible-");
+    const linkedCliDir = createTempRepo("rn-mt-cli-linked-package-");
+    const stdout = vi.fn();
+    const stderr = vi.fn();
+    const writeFile = vi.fn();
+
+    writeFileSync(
+      join(linkedCliDir, "package.json"),
+      JSON.stringify({
+        name: "@rn-mt/cli",
+        version: "0.1.0",
+      }),
+    );
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "fixture-app",
+        packageManager: "pnpm@10.25.0",
+        devDependencies: {
+          "@rn-mt/cli": `link:${linkedCliDir}`,
+        },
+      }),
+    );
+    writeFileSync(
+      join(repoDir, "rn-mt.config.json"),
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: repoDir },
+        defaults: { tenant: "fixture-app", environment: "dev" },
+        tenants: {
+          "fixture-app": { displayName: "Fixture App" },
+        },
+        environments: {
+          dev: { displayName: "Development" },
+        },
+      }),
+    );
+
+    const exitCode = runCli(["sync", "--json"], {
+      cwd: repoDir,
+      io: { stdout, stderr },
+      writeFile,
+    });
+
+    const output = stdout.mock.calls.map(([chunk]) => chunk).join("");
+    const parsed = JSON.parse(output);
+
+    expect(exitCode).toBe(0);
+    expect(parsed.command).toBe("sync");
+    expect(parsed.status).toBe("updated");
+    expect(stderr).not.toHaveBeenCalled();
+    expect(writeFile).toHaveBeenCalled();
+  });
+
   it("fails fast with upgrade guidance when global and local rn-mt cli versions drift", () => {
     const repoDir = createTempRepo("rn-mt-cli-version-incompatible-");
     const stdout = vi.fn();
@@ -1049,11 +1104,17 @@ describe("cli analyze command", () => {
       ]),
     );
     expect(existsSync(join(repoDir, "theme", "index.ts"))).toBe(false);
-    expect(existsSync(join(repoDir, "assets", "logo.png"))).toBe(false);
+    expect(existsSync(join(repoDir, "assets", "logo.png"))).toBe(true);
     expect(existsSync(join(repoDir, "App.test.tsx"))).toBe(false);
     expect(existsSync(join(repoDir, "src", "config", "index.ts"))).toBe(false);
+    expect(existsSync(join(repoDir, "app.config.ts"))).toBe(true);
     expect(parsed.generatedFiles).toEqual(
       expect.arrayContaining([
+        {
+          path: join(repoDir, "app.config.ts"),
+          kind: "expo-config-bridge",
+          changed: true,
+        },
         {
           path: join(repoDir, "rn-mt.generated.reconstruction.json"),
           kind: "reconstruction-metadata",
@@ -1984,6 +2045,74 @@ describe("cli analyze command", () => {
     expect(secondStderr).not.toHaveBeenCalled();
   });
 
+  it("converts repos whose tsconfig uses JSONC comments and trailing commas", () => {
+    const repoDir = createTempRepo("rn-mt-cli-jsonc-convert-");
+    const stdout = vi.fn();
+    const stderr = vi.fn();
+
+    mkdirSync(join(repoDir, ".git"));
+    mkdirSync(join(repoDir, "components"), { recursive: true });
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "fixture-app",
+        dependencies: { expo: "~54.0.0" },
+      }),
+    );
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp" } }),
+    );
+    writeFileSync(
+      join(repoDir, "tsconfig.json"),
+      `{
+  // preserve alias style during convert
+  "compilerOptions": {
+    "paths": {
+      "@components/*": ["./components/*"],
+    },
+  },
+}`,
+    );
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      [
+        'import { BrandButton } from "@components/BrandButton";',
+        "",
+        "export default function App() {",
+        "  return BrandButton();",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(repoDir, "components", "BrandButton.tsx"),
+      [
+        "export function BrandButton() {",
+        '  return "brand";',
+        "}",
+        "",
+      ].join("\n"),
+    );
+
+    expect(
+      runCli(["init"], {
+        cwd: repoDir,
+        io: { stdout, stderr },
+      }),
+    ).toBe(0);
+    expect(
+      runCli(["convert"], {
+        cwd: repoDir,
+        io: { stdout, stderr },
+      }),
+    ).toBe(0);
+    const rewrittenTsconfig = readFileSync(join(repoDir, "tsconfig.json"), "utf8");
+    expect(rewrittenTsconfig).toContain('"baseUrl": "."');
+    expect(rewrittenTsconfig).toContain("src/rn-mt/current/components/*");
+    expect(stderr).not.toHaveBeenCalled();
+  });
+
   it("rewrites touched imports to canonical relative paths in a no-alias TypeScript fixture", () => {
     const repoDir = createTempRepo("rn-mt-cli-no-alias-convert-");
     const stdout = vi.fn();
@@ -2302,10 +2431,10 @@ describe("cli analyze command", () => {
     expect(exitCode).toBe(0);
     expect(
       readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.ts"), "utf8"),
-    ).toContain('import theme from "@/rn-mt/current/src/theme/index";');
+    ).toContain('import theme from "@/theme";');
     expect(
       readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.ts"), "utf8"),
-    ).toContain('import config from "@/rn-mt/current/src/config/index";');
+    ).toContain('import config from "@/config";');
     expect(
       readFileSync(join(repoDir, "src", "rn-mt", "shared", "App.ts"), "utf8"),
     ).not.toContain('import theme from "../current/theme/index";');
@@ -2332,6 +2461,64 @@ describe("cli analyze command", () => {
       );
     }
 
+    expect(stderr).not.toHaveBeenCalled();
+  });
+
+  it("preserves binary asset bytes when convert writes shared and current files", () => {
+    const repoDir = createTempRepo("rn-mt-cli-binary-convert-");
+    const stdout = vi.fn();
+    const stderr = vi.fn();
+    const iconBytes = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 255, 12]);
+
+    mkdirSync(join(repoDir, ".git"));
+    mkdirSync(join(repoDir, "assets"), { recursive: true });
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "fixture-app",
+        dependencies: { expo: "~52.0.0" },
+      }),
+    );
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ expo: { name: "FixtureApp", icon: "./assets/icon.png" } }),
+    );
+    writeFileSync(
+      join(repoDir, "rn-mt.config.json"),
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: repoDir },
+        defaults: { tenant: "fixture-app", environment: "dev" },
+        tenants: {
+          "fixture-app": { displayName: "Fixture App" },
+        },
+        environments: {
+          dev: { displayName: "Development" },
+        },
+      }),
+    );
+    writeFileSync(
+      join(repoDir, "App.tsx"),
+      "export default function App() { return null; }\n",
+    );
+    writeFileSync(join(repoDir, "assets", "icon.png"), iconBytes);
+
+    const exitCode = runCli(["convert"], {
+      cwd: repoDir,
+      io: { stdout, stderr },
+    });
+
+    expect(exitCode).toBe(0);
+    expect(
+      readFileSync(
+        join(repoDir, "src", "rn-mt", "shared", "assets", "icon.png"),
+      ),
+    ).toEqual(iconBytes);
+    expect(
+      readFileSync(
+        join(repoDir, "src", "rn-mt", "current", "assets", "icon.png"),
+      ),
+    ).toEqual(iconBytes);
     expect(stderr).not.toHaveBeenCalled();
   });
 
@@ -4276,6 +4463,82 @@ describe("cli analyze command", () => {
     expect(stderr).not.toHaveBeenCalled();
   });
 
+  it("dispatches the unified start surface for shell-style bare React Native repos without root native folders", () => {
+    const repoDir = createTempRepo("rn-mt-cli-workflow-bare-shell-start-");
+    const stdout = vi.fn();
+    const stderr = vi.fn();
+    const runSubprocess = vi.fn(() => ({ status: 0 }));
+
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        name: "rn-shell-fixture",
+        scripts: {
+          start: "react-native start",
+          android: "react-native run-android",
+          ios: "react-native run-ios",
+        },
+        dependencies: {
+          "react-native": "0.85.0",
+        },
+      }),
+    );
+    writeFileSync(
+      join(repoDir, "app.json"),
+      JSON.stringify({ name: "RN Shell Fixture" }),
+    );
+    writeFileSync(
+      join(repoDir, "rn-mt.config.json"),
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: repoDir },
+        defaults: { tenant: "demo-app", environment: "dev" },
+        envSchema: {
+          apiBaseUrl: {
+            source: "API_BASE_URL",
+            required: true,
+          },
+        },
+        tenants: {
+          "demo-app": { displayName: "Demo App" },
+        },
+        environments: {
+          dev: { displayName: "dev" },
+        },
+      }),
+    );
+    writeFileSync(
+      join(repoDir, ".env.dev"),
+      "API_BASE_URL=https://dev.example.com\n",
+    );
+
+    const exitCode = runCli(["start", "--json"], {
+      cwd: repoDir,
+      io: { stdout, stderr },
+      env: {
+        PATH: "/usr/bin",
+      },
+      runSubprocess,
+    });
+
+    const output = stdout.mock.calls.map(([chunk]) => chunk).join("");
+    const parsed = JSON.parse(output);
+
+    expect(exitCode).toBe(0);
+    expect(parsed.command).toBe("start");
+    expect(parsed.repoAppKind).toBe("bare-react-native");
+    expect(runSubprocess).toHaveBeenCalledWith("react-native", ["start"], {
+      cwd: repoDir,
+      env: expect.objectContaining({
+        API_BASE_URL: "https://dev.example.com",
+        EXPO_NO_TELEMETRY: "1",
+        DO_NOT_TRACK: "1",
+        RN_MT_NETWORK_MODE: "local-first",
+      }),
+    });
+    expect(stderr).not.toHaveBeenCalled();
+  });
+
   it("dispatches the unified build surface for Expo managed repos", () => {
     const repoDir = createWorkflowFixtureRepo(
       "rn-mt-cli-workflow-expo-build-",
@@ -4938,6 +5201,12 @@ describe("cli analyze command", () => {
     mkdirSync(join(repoDir, "src", "rn-mt", "tenants", "demo-app", "theme"), {
       recursive: true,
     });
+    mkdirSync(
+      join(repoDir, "ios", "DemoApp.xcodeproj", "xcshareddata", "xcschemes"),
+      {
+        recursive: true,
+      },
+    );
     writeFileSync(
       join(repoDir, "rn-mt.config.json"),
       JSON.stringify({
@@ -4971,6 +5240,36 @@ describe("cli analyze command", () => {
     writeFileSync(
       join(repoDir, ".env.demo-app.dev"),
       "API_BASE_URL=https://demo.example.com\n",
+    );
+    writeFileSync(
+      join(repoDir, "ios", "rn-mt.generated.demo-app-dev.xcconfig"),
+      "// generated\n",
+    );
+    writeFileSync(
+      join(
+        repoDir,
+        "ios",
+        "DemoApp.xcodeproj",
+        "xcshareddata",
+        "xcschemes",
+        "DemoApp-Dev.xcscheme",
+      ),
+      "<Scheme />\n",
+    );
+    writeFileSync(
+      join(repoDir, "rn-mt.generated.reconstruction.json"),
+      JSON.stringify(
+        {
+          schemaVersion: 1,
+          tool: "rn-mt",
+          defaultTenant: "demo-app",
+          sharedRootPath: "src/rn-mt/shared",
+          currentRootPath: "src/rn-mt/current",
+          entries: [],
+        },
+        null,
+        2,
+      ) + "\n",
     );
 
     const renameExitCode = runCli(
@@ -5017,11 +5316,46 @@ describe("cli analyze command", () => {
     expect(existsSync(join(repoDir, ".env.acme-beta.dev"))).toBe(true);
     expect(existsSync(join(repoDir, ".env.demo-app.dev"))).toBe(false);
     expect(
+      existsSync(join(repoDir, "ios", "rn-mt.generated.acme-beta-dev.xcconfig")),
+    ).toBe(true);
+    expect(
+      existsSync(join(repoDir, "ios", "rn-mt.generated.demo-app-dev.xcconfig")),
+    ).toBe(false);
+    expect(
+      existsSync(
+        join(
+          repoDir,
+          "ios",
+          "DemoApp.xcodeproj",
+          "xcshareddata",
+          "xcschemes",
+          "AcmeBeta-Dev.xcscheme",
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(
+        join(
+          repoDir,
+          "ios",
+          "DemoApp.xcodeproj",
+          "xcshareddata",
+          "xcschemes",
+          "DemoApp-Dev.xcscheme",
+        ),
+      ),
+    ).toBe(false);
+    expect(
       readFileSync(
         join(repoDir, "src", "rn-mt", "current", "theme", "branding.ts"),
         "utf8",
       ),
     ).toContain("../../tenants/acme-beta/theme/branding");
+    expect(
+      JSON.parse(
+        readFileSync(join(repoDir, "rn-mt.generated.reconstruction.json"), "utf8"),
+      ).defaultTenant,
+    ).toBe("acme-beta");
 
     stdout.mockClear();
     stderr.mockClear();

@@ -55,7 +55,7 @@ export class RnMtWorkspace {
   /**
    * Hashes text content for ownership metadata and incremental sync checks.
    */
-  hashText(contents: string) {
+  hashText(contents: string | Buffer) {
     return createHash("sha256").update(contents).digest("hex");
   }
 
@@ -88,10 +88,17 @@ export class RnMtWorkspace {
   }
 
   /**
+   * Reads raw file contents from disk without applying a text encoding.
+   */
+  readBuffer(path: string) {
+    return readFileSync(path);
+  }
+
+  /**
    * Reads and parses a JSON file from disk.
    */
   readJson<T>(path: string) {
-    return JSON.parse(this.readText(path)) as T;
+    return this.parseJsonLike<T>(this.readText(path), path);
   }
 
   /**
@@ -168,5 +175,172 @@ export class RnMtWorkspace {
    */
   toRootRelative(path: string) {
     return relative(this.rootDir, path);
+  }
+
+  /**
+   * Parses repository-owned JSON-like config files, including JSONC surfaces
+   * such as tsconfig.json that commonly contain comments or trailing commas.
+   */
+  private parseJsonLike<T>(contents: string, path: string) {
+    try {
+      return JSON.parse(
+        this.stripTrailingCommas(this.stripJsonComments(contents)),
+      ) as T;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unknown JSON parse error";
+      throw new Error(`${message}\nwhile parsing ${path}`);
+    }
+  }
+
+  /**
+   * Removes line and block comments from JSONC-style config files while
+   * keeping string literals intact.
+   */
+  private stripJsonComments(contents: string) {
+    let normalized = "";
+    let inString = false;
+    let escapeNextCharacter = false;
+    let inLineComment = false;
+    let inBlockComment = false;
+
+    for (let index = 0; index < contents.length; index += 1) {
+      const character = contents[index];
+      const nextCharacter = contents[index + 1];
+
+      if (inLineComment) {
+        if (character === "\n") {
+          inLineComment = false;
+          normalized += "\n";
+        } else {
+          normalized += " ";
+        }
+
+        continue;
+      }
+
+      if (inBlockComment) {
+        if (character === "*" && nextCharacter === "/") {
+          inBlockComment = false;
+          normalized += "  ";
+          index += 1;
+        } else {
+          normalized += character === "\n" ? "\n" : " ";
+        }
+
+        continue;
+      }
+
+      if (inString) {
+        normalized += character;
+
+        if (escapeNextCharacter) {
+          escapeNextCharacter = false;
+          continue;
+        }
+
+        if (character === "\\") {
+          escapeNextCharacter = true;
+          continue;
+        }
+
+        if (character === '"') {
+          inString = false;
+        }
+
+        continue;
+      }
+
+      if (character === '"') {
+        inString = true;
+        normalized += character;
+        continue;
+      }
+
+      if (character === "/" && nextCharacter === "/") {
+        inLineComment = true;
+        normalized += "  ";
+        index += 1;
+        continue;
+      }
+
+      if (character === "/" && nextCharacter === "*") {
+        inBlockComment = true;
+        normalized += "  ";
+        index += 1;
+        continue;
+      }
+
+      normalized += character;
+    }
+
+    return normalized;
+  }
+
+  /**
+   * Drops trailing commas before closing braces or brackets so JSONC config
+   * can be parsed with the built-in JSON parser.
+   */
+  private stripTrailingCommas(contents: string) {
+    let normalized = "";
+    let inString = false;
+    let escapeNextCharacter = false;
+
+    for (let index = 0; index < contents.length; index += 1) {
+      const character = contents[index];
+
+      if (inString) {
+        normalized += character;
+
+        if (escapeNextCharacter) {
+          escapeNextCharacter = false;
+          continue;
+        }
+
+        if (character === "\\") {
+          escapeNextCharacter = true;
+          continue;
+        }
+
+        if (character === '"') {
+          inString = false;
+        }
+
+        continue;
+      }
+
+      if (character === '"') {
+        inString = true;
+        normalized += character;
+        continue;
+      }
+
+      if (character === ",") {
+        let lookaheadIndex = index + 1;
+
+        while (lookaheadIndex < contents.length) {
+          const lookaheadCharacter = contents[lookaheadIndex];
+
+          if (!lookaheadCharacter || !/\s/u.test(lookaheadCharacter)) {
+            break;
+          }
+
+          lookaheadIndex += 1;
+        }
+
+        const nextSignificantCharacter = contents[lookaheadIndex];
+
+        if (
+          nextSignificantCharacter === "}" ||
+          nextSignificantCharacter === "]"
+        ) {
+          continue;
+        }
+      }
+
+      normalized += character;
+    }
+
+    return normalized;
   }
 }

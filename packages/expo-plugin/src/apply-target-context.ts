@@ -17,6 +17,10 @@ export function applyExpoTargetContext<TConfig extends ExpoConfigLike>(
   return {
     ...baseConfig,
     name: targetContext.identity.displayName,
+    ...(targetContext.expo?.slug ? { slug: targetContext.expo.slug } : {}),
+    ...(targetContext.expo?.scheme
+      ? { scheme: targetContext.expo.scheme }
+      : {}),
     ...(targetContext.iconPath ? { icon: targetContext.iconPath } : {}),
     ios: {
       ...(baseConfig.ios ?? {}),

@@ -19,7 +19,7 @@ export interface RnMtCodemodResult {
 export interface RnMtConvertMovedFile {
   sourcePath: string;
   destinationPath: string;
-  contents: string;
+  contents: string | Buffer;
   removeSourcePath?: boolean;
 }
 
@@ -46,6 +46,7 @@ export interface RnMtConvertResult {
 
 export type RnMtReconstructionOriginalPathBehavior =
   | "removed"
+  | "preserved"
   | "replaced-with-root-wrapper"
   | "replaced-with-host-config-bridge";
 
@@ -77,4 +78,7 @@ export interface RnMtConvertRunOptions {
 export interface RnMtAliasRule {
   specifierPrefix: string;
   targetBasePath: string;
+  exactMatch?: boolean;
+  preserveSpecifierStyle?: boolean;
+  preserveOriginalSpecifier?: boolean;
 }

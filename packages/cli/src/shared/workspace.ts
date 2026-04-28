@@ -44,8 +44,6 @@ export class RnMtCliWorkspaceFactory {
 
     if (overrides.readFile) {
       workspace.readText = overrides.readFile;
-      workspace.readJson = <T>(path: string) =>
-        JSON.parse(overrides.readFile!(path)) as T;
     }
 
     if (overrides.fileExists && overrides.readFile) {
@@ -53,10 +51,6 @@ export class RnMtCliWorkspaceFactory {
         overrides.fileExists!(path) && canReadFile(path);
       workspace.isDirectory = (path: string) =>
         overrides.fileExists!(path) && !workspace.isFile(path);
-      workspace.readJsonIfPresent = <T>(path: string) =>
-        overrides.fileExists!(path)
-          ? (JSON.parse(overrides.readFile!(path)) as T)
-          : null;
     }
 
     return workspace;

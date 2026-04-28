@@ -10,8 +10,10 @@ export {
 export { createCurrentFacadeFile } from "./facade-writer";
 export {
   getAliasRules,
+  hasExportSyntax,
   isFacadeSourceFile,
   isTestSourcePath,
+  rebaseRelativeImportSpecifiers,
   rewriteHandoffSourceContents,
 } from "./import-rewriter";
 

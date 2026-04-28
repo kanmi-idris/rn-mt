@@ -12,6 +12,7 @@ export interface ExpoPluginBridgeContract {
 export interface ExpoConfigLike {
   name?: string;
   slug?: string;
+  scheme?: string | string[];
   icon?: string;
   ios?: Record<string, unknown>;
   android?: Record<string, unknown>;

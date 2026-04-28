@@ -2,7 +2,7 @@
  * Handles tenant lifecycle operations and updates the manifest's default target
  * selection.
  */
-import { join } from "node:path";
+import { dirname, join, relative } from "node:path";
 
 import type { RnMtManifest } from "../manifest/types";
 import { validateTargetSelection } from "../manifest";
@@ -11,6 +11,8 @@ import {
   listSharedFiles,
   isTestSourcePath,
 } from "../convert";
+import type { RnMtReconstructionMetadataFile } from "../convert/types";
+import { toPascalIdentifier } from "../sync";
 import { RnMtWorkspace } from "../workspace";
 
 import type {
@@ -190,6 +192,14 @@ export class RnMtTenantModule {
       });
     }
 
+    renamedPaths.push(
+      ...this.collectGeneratedIosRenamePaths(
+        fromId,
+        toId,
+        Object.keys(options.manifest.environments),
+      ),
+    );
+
     const previousTenantLayer = options.manifest.tenants[fromId];
     const displayName =
       options.tenant.displayName?.trim() || previousTenantLayer.displayName;
@@ -205,7 +215,12 @@ export class RnMtTenantModule {
     const sharedRootDir = this.dependencies.workspace.getSharedRootDir();
     const generatedFiles = isDefaultTenantRename
       ? listSharedFiles(this.dependencies.workspace)
-          .filter((path) => !isTestSourcePath(path))
+          .filter(
+            (path) =>
+              !isTestSourcePath(
+                relative(this.dependencies.workspace.getSharedRootDir(), path),
+              ),
+          )
           .map((sharedPath) => {
             const sharedFile = {
               path: sharedPath,
@@ -241,6 +256,13 @@ export class RnMtTenantModule {
                 );
           })
       : [];
+    const renamedReconstructionMetadata = isDefaultTenantRename
+      ? this.createRenamedReconstructionMetadataFile(fromId, toId)
+      : null;
+
+    if (renamedReconstructionMetadata) {
+      generatedFiles.push(renamedReconstructionMetadata);
+    }
 
     return {
       manifestPath: this.dependencies.workspace.getManifestPath(),
@@ -344,5 +366,117 @@ export class RnMtTenantModule {
     }
 
     return null;
+  }
+
+  /**
+   * Renames generated iOS tenant-environment artifacts so tenant rename does
+   * not leave stale scheme and xcconfig files behind.
+   */
+  private collectGeneratedIosRenamePaths(
+    fromTenantId: string,
+    toTenantId: string,
+    environmentIds: string[],
+  ) {
+    const iosDir = join(this.dependencies.workspace.rootDir, "ios");
+
+    if (!this.dependencies.workspace.isDirectory(iosDir)) {
+      return [];
+    }
+
+    const renamedPaths: Array<{
+      fromPath: string;
+      toPath: string;
+    }> = [];
+
+    for (const environmentId of environmentIds) {
+      const fromXcconfigPath = join(
+        iosDir,
+        `rn-mt.generated.${fromTenantId}-${environmentId}.xcconfig`,
+      );
+      const toXcconfigPath = join(
+        iosDir,
+        `rn-mt.generated.${toTenantId}-${environmentId}.xcconfig`,
+      );
+
+      if (this.dependencies.workspace.exists(fromXcconfigPath)) {
+        if (this.dependencies.workspace.exists(toXcconfigPath)) {
+          throw new Error(
+            `Tenant iOS xcconfig path already exists: ${toXcconfigPath}`,
+          );
+        }
+
+        renamedPaths.push({
+          fromPath: fromXcconfigPath,
+          toPath: toXcconfigPath,
+        });
+      }
+
+      const fromSchemeName = `${toPascalIdentifier(fromTenantId)}-${toPascalIdentifier(
+        environmentId,
+      )}.xcscheme`;
+      const toSchemeName = `${toPascalIdentifier(toTenantId)}-${toPascalIdentifier(
+        environmentId,
+      )}.xcscheme`;
+
+      for (const sourcePath of this.dependencies.workspace
+        .listFiles(iosDir)
+        .filter((path) => path.endsWith(fromSchemeName))) {
+        const targetPath = join(dirname(sourcePath), toSchemeName);
+
+        if (this.dependencies.workspace.exists(targetPath)) {
+          throw new Error(`Tenant iOS scheme path already exists: ${targetPath}`);
+        }
+
+        renamedPaths.push({
+          fromPath: sourcePath,
+          toPath: targetPath,
+        });
+      }
+    }
+
+    return renamedPaths;
+  }
+
+  /**
+   * Rewrites reconstruction metadata so later handoff/export flows do not keep
+   * referring to a stale default tenant after the default tenant is renamed.
+   */
+  private createRenamedReconstructionMetadataFile(
+    fromTenantId: string,
+    toTenantId: string,
+  ) {
+    const reconstructionPath = join(
+      this.dependencies.workspace.rootDir,
+      "rn-mt.generated.reconstruction.json",
+    );
+
+    if (!this.dependencies.workspace.isFile(reconstructionPath)) {
+      return null;
+    }
+
+    const parsed = JSON.parse(
+      this.dependencies.workspace.readText(reconstructionPath),
+    ) as Partial<RnMtReconstructionMetadataFile>;
+
+    if (
+      parsed.tool !== "rn-mt" ||
+      parsed.schemaVersion !== 1 ||
+      parsed.defaultTenant !== fromTenantId
+    ) {
+      return null;
+    }
+
+    return {
+      path: reconstructionPath,
+      kind: "reconstruction-metadata" as const,
+      contents: `${JSON.stringify(
+        {
+          ...parsed,
+          defaultTenant: toTenantId,
+        },
+        null,
+        2,
+      )}\n`,
+    };
   }
 }

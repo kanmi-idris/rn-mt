@@ -34,6 +34,7 @@ export type RnMtSupportReasonCode =
   | "modern-expo-managed"
   | "modern-expo-prebuild"
   | "modern-bare-react-native"
+  | "shell-bare-react-native"
   | "ambiguous-repo-shape"
   | "unrecognized-app-shape";
 

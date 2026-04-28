@@ -6,7 +6,7 @@ import type { RnMtSyncGeneratedFile } from "../sync/types";
 export interface RnMtOverrideCreatedFile {
   sourcePath: string;
   destinationPath: string;
-  contents: string;
+  contents: string | Buffer;
 }
 
 export interface RnMtOverrideCreateResult {

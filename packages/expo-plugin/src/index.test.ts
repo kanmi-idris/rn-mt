@@ -32,11 +32,16 @@ describe("expo plugin bridge", () => {
         },
         runtimeConfigPath: "./rn-mt.generated.runtime.json",
         iconPath: "./ios/rn-mt.generated.icon.dev.svg",
+        expo: {
+          slug: "keep-nexus-dev",
+          scheme: "keepnexusdev",
+        },
       },
     );
 
     expect(result).toEqual({
-      slug: "keep-nexus",
+      slug: "keep-nexus-dev",
+      scheme: "keepnexusdev",
       name: "Keep Nexus (Dev)",
       icon: "./ios/rn-mt.generated.icon.dev.svg",
       ios: {
@@ -63,6 +68,7 @@ describe("expo plugin bridge", () => {
     const result = applyExpoTargetContext(
       {
         slug: "keep-nexus",
+        scheme: "keepnexus",
         extra: {
           base: true,
           rnMt: {
@@ -88,6 +94,7 @@ describe("expo plugin bridge", () => {
     expect(result).toEqual({
       name: "Keep Nexus (Staging)",
       slug: "keep-nexus",
+      scheme: "keepnexus",
       ios: {
         bundleIdentifier: "com.keep.nexus.staging",
       },

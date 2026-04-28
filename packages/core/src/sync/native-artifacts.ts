@@ -41,6 +41,15 @@ export function createExpoTargetContextFile(
   target: RnMtResolvedTarget,
   iconPath: string | undefined,
 ): RnMtSyncGeneratedFile {
+  const expoConfig =
+    runtime.config.expo &&
+    typeof runtime.config.expo === "object" &&
+    !Array.isArray(runtime.config.expo)
+      ? (runtime.config.expo as {
+          slug?: string;
+          scheme?: string | string[];
+        })
+      : undefined;
   const artifact: RnMtExpoTargetContextArtifact = {
     schemaVersion: 1,
     target: target.platform
@@ -56,6 +65,14 @@ export function createExpoTargetContextFile(
     identity: runtime.identity,
     runtimeConfigPath: "./rn-mt.generated.runtime.json",
     ...(iconPath ? { iconPath } : {}),
+    ...(expoConfig?.slug || expoConfig?.scheme
+      ? {
+          expo: {
+            ...(expoConfig.slug ? { slug: expoConfig.slug } : {}),
+            ...(expoConfig.scheme ? { scheme: expoConfig.scheme } : {}),
+          },
+        }
+      : {}),
   };
 
   return {

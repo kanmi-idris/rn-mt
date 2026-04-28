@@ -160,7 +160,10 @@ export class RnMtCliHandoffCommands {
 
       for (const file of flattenResult.restoredFiles) {
         this.context.files.ensureParentDir(file.destinationPath);
-        this.context.writeFile(file.destinationPath, file.contents);
+        this.context.files.writePathContents(
+          file.destinationPath,
+          file.contents,
+        );
       }
 
       const cleanupResult = outputCore.createHandoffCleanupResult();

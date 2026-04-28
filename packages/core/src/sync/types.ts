@@ -17,6 +17,7 @@ export type RnMtGeneratedArtifactKind =
   | "repo-readme"
   | "root-wrapper"
   | "current-facade"
+  | "expo-config-bridge"
   | "host-config-bridge"
   | "derived-asset"
   | "asset-fingerprint-metadata"
@@ -28,7 +29,7 @@ export type RnMtGeneratedArtifactKind =
 
 export interface RnMtSyncGeneratedFile {
   path: string;
-  contents: string;
+  contents: string | Buffer;
   kind: RnMtGeneratedArtifactKind;
 }
 
@@ -80,6 +81,10 @@ export interface RnMtExpoTargetContextArtifact {
   identity: RnMtResolvedIdentity;
   runtimeConfigPath: string;
   iconPath?: string;
+  expo?: {
+    slug?: string;
+    scheme?: string | string[];
+  };
 }
 
 export interface RnMtOwnershipMetadataFile {

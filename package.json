@@ -12,6 +12,7 @@
     "build": "pnpm -r build",
     "clean": "pnpm -r clean && rimraf coverage dist .turbo",
     "dev:cli": "pnpm --filter @rn-mt/cli dev",
+    "examples:verify": "node ./scripts/verify-examples.mjs",
     "lint": "pnpm -r lint",
     "test": "vitest run",
     "test:watch": "vitest",

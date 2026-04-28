@@ -33,7 +33,10 @@ export class RnMtAuditModule {
     const findings: RnMtAuditFinding[] = [];
 
     for (const path of listSharedFiles(this.dependencies.workspace)) {
-      if (isTestSourcePath(path) || !isAuditableTextFile(path)) {
+      if (
+        isTestSourcePath(relative(sharedRootDir, path)) ||
+        !isAuditableTextFile(path)
+      ) {
         continue;
       }
 

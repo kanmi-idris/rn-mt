@@ -10,5 +10,12 @@
       "@rn-mt/shared": ["../shared/src/index.ts"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "../shared/src/**/*.ts"]
+  "include": [
+    "src/*.ts",
+    "src/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "../shared/src/*.ts",
+    "../shared/src/**/*.ts"
+  ]
 }

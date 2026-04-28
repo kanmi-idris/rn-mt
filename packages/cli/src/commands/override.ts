@@ -46,12 +46,17 @@ export class RnMtCliOverrideCommands {
       );
       const copiedChanged =
         !this.context.fileExists(result.copiedFile.destinationPath) ||
-        this.context.readFile(result.copiedFile.destinationPath) !==
+        this.context.files.readPathContents(
+          result.copiedFile.destinationPath,
+          {
+            binary: Buffer.isBuffer(result.copiedFile.contents),
+          },
+        ) !==
           result.copiedFile.contents;
 
       if (copiedChanged) {
         this.context.files.ensureParentDir(result.copiedFile.destinationPath);
-        this.context.writeFile(
+        this.context.files.writePathContents(
           result.copiedFile.destinationPath,
           result.copiedFile.contents,
         );
@@ -60,11 +65,11 @@ export class RnMtCliOverrideCommands {
       const generatedFiles = result.generatedFiles.map((file) => {
         const changed =
           !this.context.fileExists(file.path) ||
-          this.context.readFile(file.path) !== file.contents;
+          this.context.files.readPathContents(file.path) !== file.contents;
 
         if (changed) {
           this.context.files.ensureParentDir(file.path);
-          this.context.writeFile(file.path, file.contents);
+          this.context.files.writePathContents(file.path, file.contents);
         }
 
         return {
@@ -151,11 +156,11 @@ export class RnMtCliOverrideCommands {
       const generatedFiles = result.generatedFiles.map((file) => {
         const changed =
           !this.context.fileExists(file.path) ||
-          this.context.readFile(file.path) !== file.contents;
+          this.context.files.readPathContents(file.path) !== file.contents;
 
         if (changed) {
           this.context.files.ensureParentDir(file.path);
-          this.context.writeFile(file.path, file.contents);
+          this.context.files.writePathContents(file.path, file.contents);
         }
 
         return {
