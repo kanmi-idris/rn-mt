@@ -13,5 +13,9 @@ pnpm-debug.log*
 # Generated fixture temp workspaces
 tests/tmp/
 
+# Generated docs build output
+apps/docs/.next/
+apps/docs/out/
+
 # Local upstream source mirrors
 opensrc/

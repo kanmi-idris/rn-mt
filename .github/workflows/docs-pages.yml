@@ -52,7 +52,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build docs site
-        run: pnpm --filter @rn-mt/docs build
+        run: pnpm --dir apps/docs build
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
