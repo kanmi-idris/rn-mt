@@ -188,11 +188,11 @@ function rewriteRnMtPackageLinks(targetDir) {
   const packageJsonPath = join(targetDir, 'package.json');
   const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
   const packageNames = [
-    '@rn-mt/cli',
-    '@rn-mt/runtime',
-    '@rn-mt/expo-plugin',
-    '@rn-mt/core',
-    '@rn-mt/shared',
+    '@molaidrislabs/cli',
+    '@molaidrislabs/runtime',
+    '@molaidrislabs/expo-plugin',
+    '@molaidrislabs/core',
+    '@molaidrislabs/shared',
   ];
   const dependencyMaps = [packageJson.dependencies, packageJson.devDependencies].filter(Boolean);
 
@@ -209,7 +209,7 @@ function rewriteRnMtPackageLinks(targetDir) {
 
   packageJson.devDependencies ??= {};
 
-  for (const packageName of ['@rn-mt/core', '@rn-mt/shared']) {
+  for (const packageName of ['@molaidrislabs/core', '@molaidrislabs/shared']) {
     packageJson.devDependencies[packageName] = toLinkSpec(
       targetDir,
       join(repoRoot, 'packages', packageName.split('/')[1]),

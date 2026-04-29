@@ -31,7 +31,7 @@ export class RnMtCliVersionModule {
   getCliPackageVersion() {
     const packageJsonPath = this.findPackageJsonPath(
       dirname(fileURLToPath(import.meta.url)),
-      "@rn-mt/cli",
+      "@molaidrislabs/cli",
     );
     const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
       version?: string;
@@ -62,8 +62,8 @@ export class RnMtCliVersionModule {
       };
 
       return (
-        packageJson.devDependencies?.["@rn-mt/cli"] ??
-        packageJson.dependencies?.["@rn-mt/cli"] ??
+        packageJson.devDependencies?.["@molaidrislabs/cli"] ??
+        packageJson.dependencies?.["@molaidrislabs/cli"] ??
         null
       );
     } catch {
@@ -118,7 +118,7 @@ export class RnMtCliVersionModule {
       globalVersion,
       localVersion,
       installCommand,
-      reason: `Global rn-mt CLI version ${globalVersion} is incompatible with repo-local @rn-mt/cli version ${localVersion}.`,
+      reason: `Global rn-mt CLI version ${globalVersion} is incompatible with repo-local @molaidrislabs/cli version ${localVersion}.`,
       remediation: [
         `Upgrade or reinstall the global rn-mt CLI to version ${localVersion}.`,
         installCommand

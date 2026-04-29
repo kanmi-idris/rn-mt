@@ -14,7 +14,7 @@ import {
   RnMtSyncModule,
   RnMtTenantModule,
   manifest as manifestNamespace,
-} from "@rn-mt/core";
+} from "@molaidrislabs/core";
 
 import { RnMtCliWorkspaceFactory } from "./shared/workspace";
 

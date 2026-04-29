@@ -1,23 +1,43 @@
 {
-  "name": "@rn-mt/expo-plugin",
+  "name": "@molaidrislabs/expo-plugin",
   "version": "0.1.0",
   "description": "Expo config plugin adapter for rn-mt target resolution.",
   "license": "MIT",
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "files": [
     "dist"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kanmi-idris/rn-mt.git",
+    "directory": "packages/expo-plugin"
+  },
+  "bugs": {
+    "url": "https://github.com/kanmi-idris/rn-mt/issues"
+  },
+  "homepage": "https://github.com/kanmi-idris/rn-mt/tree/main/packages/expo-plugin",
   "peerDependencies": {
     "expo": ">=52"
   },
   "dependencies": {
-    "@rn-mt/core": "workspace:*",
-    "@rn-mt/shared": "workspace:*"
+    "@molaidrislabs/core": "workspace:*",
+    "@molaidrislabs/shared": "workspace:*"
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts --tsconfig tsconfig.build.json",
+    "build": "tsup src/index.ts --format esm,cjs --dts --tsconfig tsconfig.build.json && rimraf dist/expo-plugin",
     "clean": "rimraf dist",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit"

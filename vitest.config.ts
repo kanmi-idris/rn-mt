@@ -5,8 +5,8 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   resolve: {
     alias: {
-      "@rn-mt/core": resolve(__dirname, "packages/core/src/index.ts"),
-      "@rn-mt/shared": resolve(__dirname, "packages/shared/src/index.ts"),
+      "@molaidrislabs/core": resolve(__dirname, "packages/core/src/index.ts"),
+      "@molaidrislabs/shared": resolve(__dirname, "packages/shared/src/index.ts"),
     },
   },
   test: {

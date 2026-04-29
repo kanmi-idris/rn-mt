@@ -22,7 +22,7 @@ interface RnMtPackageJsonLike {
 export function getRnMtPackageVersion() {
   const packageJsonPath = findPackageJsonPath(
     dirname(fileURLToPath(import.meta.url)),
-    "@rn-mt/core",
+    "@molaidrislabs/core",
   );
   const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
     version?: string;
@@ -75,12 +75,12 @@ export function getLocalRnMtPackagePlan(appKind: RnMtRepoAppKind) {
     section: "dependencies" | "devDependencies";
   }> = [
     {
-      name: "@rn-mt/runtime",
+      name: "@molaidrislabs/runtime",
       version,
       section: "dependencies",
     },
     {
-      name: "@rn-mt/cli",
+      name: "@molaidrislabs/cli",
       version,
       section: "devDependencies",
     },
@@ -88,7 +88,7 @@ export function getLocalRnMtPackagePlan(appKind: RnMtRepoAppKind) {
 
   if (appKind === "expo-managed" || appKind === "expo-prebuild") {
     localPackages.push({
-      name: "@rn-mt/expo-plugin",
+      name: "@molaidrislabs/expo-plugin",
       version,
       section: "dependencies",
     });

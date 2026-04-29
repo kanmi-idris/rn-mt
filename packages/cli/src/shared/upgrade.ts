@@ -154,12 +154,12 @@ export class RnMtCliUpgradeModule {
       section: "dependencies" | "devDependencies";
     }> = [
       {
-        name: "@rn-mt/runtime",
+        name: "@molaidrislabs/runtime",
         version,
         section: "dependencies",
       },
       {
-        name: "@rn-mt/cli",
+        name: "@molaidrislabs/cli",
         version,
         section: "devDependencies",
       },
@@ -170,7 +170,7 @@ export class RnMtCliUpgradeModule {
       analyzeReport.repo.app.kind === "expo-prebuild"
     ) {
       packages.push({
-        name: "@rn-mt/expo-plugin",
+        name: "@molaidrislabs/expo-plugin",
         version,
         section: "dependencies",
       });

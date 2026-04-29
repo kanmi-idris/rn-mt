@@ -6,8 +6,8 @@
     "outDir": "dist",
     "baseUrl": ".",
     "paths": {
-      "@rn-mt/core": ["../core/src/index.ts"],
-      "@rn-mt/shared": ["../shared/src/index.ts"]
+      "@molaidrislabs/core": ["../core/src/index.ts"],
+      "@molaidrislabs/shared": ["../shared/src/index.ts"]
     }
   },
   "include": [

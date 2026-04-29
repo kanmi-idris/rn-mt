@@ -1996,9 +1996,9 @@ describe("handoff cleanup helpers", () => {
     );
     expect(packageJsonFile?.contents).toContain('"ios": "expo start --ios"');
     expect(packageJsonFile?.contents).not.toContain("rn-mt:");
-    expect(packageJsonFile?.contents).not.toContain("@rn-mt/runtime");
-    expect(packageJsonFile?.contents).not.toContain("@rn-mt/cli");
-    expect(packageJsonFile?.contents).not.toContain("@rn-mt/expo-plugin");
+    expect(packageJsonFile?.contents).not.toContain("@molaidrislabs/runtime");
+    expect(packageJsonFile?.contents).not.toContain("@molaidrislabs/cli");
+    expect(packageJsonFile?.contents).not.toContain("@molaidrislabs/expo-plugin");
     expect(readmeFile?.contents).toBe("# Fixture App\n");
     expect(cleanupResult.removedPaths).toEqual(
       expect.arrayContaining([
@@ -3536,11 +3536,11 @@ describe("convert helpers", () => {
     expect(packageJsonFile?.contents).toContain(
       '"postinstall": "rn-mt hook postinstall"',
     );
-    expect(packageJsonFile?.contents).toContain('"@rn-mt/runtime": "0.1.0"');
+    expect(packageJsonFile?.contents).toContain('"@molaidrislabs/runtime": "0.1.0"');
     expect(packageJsonFile?.contents).toContain(
-      '"@rn-mt/expo-plugin": "0.1.0"',
+      '"@molaidrislabs/expo-plugin": "0.1.0"',
     );
-    expect(packageJsonFile?.contents).toContain('"@rn-mt/cli": "0.1.0"');
+    expect(packageJsonFile?.contents).toContain('"@molaidrislabs/cli": "0.1.0"');
     expect(packageJsonFile?.contents).toContain('"test": "vitest"');
     expect(result.packageManager).toEqual({
       name: "pnpm",
@@ -3549,17 +3549,17 @@ describe("convert helpers", () => {
     });
     expect(result.localPackages).toEqual([
       {
-        name: "@rn-mt/runtime",
+        name: "@molaidrislabs/runtime",
         version: "0.1.0",
         section: "dependencies",
       },
       {
-        name: "@rn-mt/cli",
+        name: "@molaidrislabs/cli",
         version: "0.1.0",
         section: "devDependencies",
       },
       {
-        name: "@rn-mt/expo-plugin",
+        name: "@molaidrislabs/expo-plugin",
         version: "0.1.0",
         section: "dependencies",
       },
@@ -3630,9 +3630,9 @@ describe("convert helpers", () => {
       (file) => file.sourcePath === join(repoDir, "package.json"),
     );
 
-    expect(packageJsonFile?.contents).toContain('"@rn-mt/runtime": "0.1.0"');
-    expect(packageJsonFile?.contents).toContain('"@rn-mt/cli": "0.1.0"');
-    expect(packageJsonFile?.contents).not.toContain("@rn-mt/expo-plugin");
+    expect(packageJsonFile?.contents).toContain('"@molaidrislabs/runtime": "0.1.0"');
+    expect(packageJsonFile?.contents).toContain('"@molaidrislabs/cli": "0.1.0"');
+    expect(packageJsonFile?.contents).not.toContain("@molaidrislabs/expo-plugin");
     expect(result.packageManager).toEqual({
       name: "yarn",
       source: "yarn-lock",
@@ -3640,12 +3640,12 @@ describe("convert helpers", () => {
     });
     expect(result.localPackages).toEqual([
       {
-        name: "@rn-mt/runtime",
+        name: "@molaidrislabs/runtime",
         version: "0.1.0",
         section: "dependencies",
       },
       {
-        name: "@rn-mt/cli",
+        name: "@molaidrislabs/cli",
         version: "0.1.0",
         section: "devDependencies",
       },

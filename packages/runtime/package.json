@@ -1,22 +1,42 @@
 {
-  "name": "@rn-mt/runtime",
+  "name": "@molaidrislabs/runtime",
   "version": "0.1.0",
   "description": "Runtime integration helpers for converted rn-mt host apps.",
   "license": "MIT",
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "files": [
     "dist"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kanmi-idris/rn-mt.git",
+    "directory": "packages/runtime"
+  },
+  "bugs": {
+    "url": "https://github.com/kanmi-idris/rn-mt/issues"
+  },
+  "homepage": "https://github.com/kanmi-idris/rn-mt/tree/main/packages/runtime",
   "dependencies": {
-    "@rn-mt/shared": "workspace:*"
+    "@molaidrislabs/shared": "workspace:*"
   },
   "peerDependencies": {
     "react": ">=18"
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts --tsconfig tsconfig.build.json",
+    "build": "tsup src/index.ts --format esm,cjs --dts --tsconfig tsconfig.build.json && rimraf dist/runtime",
     "clean": "rimraf dist",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit"

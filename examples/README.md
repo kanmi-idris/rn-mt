@@ -13,7 +13,7 @@ These stay as pre-conversion apps. Verification copies them into `tests/tmp/exam
 
 ## Committed Multitenant Fixtures
 
-These are already converted and committed as multitenant repos. Verification copies them into `tests/tmp/examples/*`, rewrites local `@rn-mt/*` package links for the sandbox, retargets the manifest root to the sandbox path, and then loops through each committed tenant with `target set`, `sync`, typecheck, config smoke, start smoke, and audit.
+These are already converted and committed as multitenant repos. Verification copies them into `tests/tmp/examples/*`, rewrites local `@molaidrislabs/*` package links for the sandbox, retargets the manifest root to the sandbox path, and then loops through each committed tenant with `target set`, `sync`, typecheck, config smoke, start smoke, and audit.
 
 - `flippay-managed-legacy`: legacy Expo managed app-entry fixture with committed `northstar`, `orchid`, and `volt` tenants
 - `mmuta-managed-legacy`: legacy Expo managed fixture with committed `northstar`, `orchid`, and `volt` tenants

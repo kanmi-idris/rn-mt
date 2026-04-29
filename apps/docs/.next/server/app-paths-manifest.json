@@ -1,15 +1,15 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
-  "/command-reference/page": "app/command-reference/page.js",
-  "/architecture/page": "app/architecture/page.js",
-  "/examples/page": "app/examples/page.js",
-  "/agent-skill/page": "app/agent-skill/page.js",
-  "/contributing/page": "app/contributing/page.js",
   "/convert-an-app/page": "app/convert-an-app/page.js",
   "/get-started/page": "app/get-started/page.js",
-  "/troubleshooting/page": "app/troubleshooting/page.js",
   "/page": "app/page.js",
   "/introduction/page": "app/introduction/page.js",
+  "/troubleshooting/page": "app/troubleshooting/page.js",
+  "/examples/page": "app/examples/page.js",
+  "/contributing/page": "app/contributing/page.js",
   "/targets-and-sync/page": "app/targets-and-sync/page.js",
-  "/workflow-hooks/page": "app/workflow-hooks/page.js"
+  "/agent-skill/page": "app/agent-skill/page.js",
+  "/workflow-hooks/page": "app/workflow-hooks/page.js",
+  "/command-reference/page": "app/command-reference/page.js",
+  "/architecture/page": "app/architecture/page.js"
 }

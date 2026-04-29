@@ -1,7 +1,7 @@
 /**
  * Provides shared workspace behavior for CLI execution.
  */
-import { RnMtAnalyzeModule, RnMtWorkspace } from "@rn-mt/core";
+import { RnMtAnalyzeModule, RnMtWorkspace } from "@molaidrislabs/core";
 
 import type { RnMtCliWorkspaceOverrides } from "../types";
 

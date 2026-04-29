@@ -11,10 +11,10 @@ It is designed to convert a single-tenant mobile app into a manifest-driven mult
 
 ## Workspace packages
 
-- `@rn-mt/cli`: bootstrap and project-local command runner
-- `@rn-mt/core`: schema, merge engine, repo analysis, patch planning, sync, audit, handoff reconstruction contracts
-- `@rn-mt/runtime`: host-app runtime helpers and React-facing accessors
-- `@rn-mt/expo-plugin`: Expo config plugin adapter
+- `@molaidrislabs/cli`: bootstrap and project-local command runner
+- `@molaidrislabs/core`: schema, merge engine, repo analysis, patch planning, sync, audit, handoff reconstruction contracts
+- `@molaidrislabs/runtime`: host-app runtime helpers and React-facing accessors
+- `@molaidrislabs/expo-plugin`: Expo config plugin adapter
 
 ## Current state
 

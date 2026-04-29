@@ -1,5 +1,5 @@
 /**
- * Public entrypoint for the @rn-mt/core package.
+ * Public entrypoint for the @molaidrislabs/core package.
  */
 export { RnMtWorkspace } from "./workspace";
 export { RnMtAnalyzeModule } from "./analyze";

@@ -32,8 +32,8 @@ Why `pnpm build` first:
 For docs app changes:
 
 ```bash
-pnpm --filter @rn-mt/docs typecheck
-pnpm --filter @rn-mt/docs build
+pnpm --filter @molaidrislabs/docs typecheck
+pnpm --filter @molaidrislabs/docs build
 ```
 
 For live local preview:
@@ -94,7 +94,7 @@ Committed multitenant fixtures:
 
 - copied
 - manifest root rewritten to the sandbox path
-- local `@rn-mt/*` package links rewritten
+- local `@molaidrislabs/*` package links rewritten
 - looped across committed tenants with `target set`, `sync`, smoke, and audit
 
 ## Useful one-package loops
@@ -102,21 +102,21 @@ Committed multitenant fixtures:
 Core-only changes:
 
 ```bash
-pnpm --filter @rn-mt/core build
+pnpm --filter @molaidrislabs/core build
 pnpm exec vitest run packages/core/src/index.test.ts
 ```
 
 CLI-only changes:
 
 ```bash
-pnpm --filter @rn-mt/cli build
+pnpm --filter @molaidrislabs/cli build
 pnpm exec vitest run packages/cli/src/index.test.ts
 ```
 
 Expo plugin changes:
 
 ```bash
-pnpm --filter @rn-mt/expo-plugin build
+pnpm --filter @molaidrislabs/expo-plugin build
 pnpm exec vitest run packages/expo-plugin/src/index.test.ts
 ```
 

@@ -1,7 +1,7 @@
 /**
  * Defines the narrow type surface shared by the Expo bridge helpers.
  */
-import type { RnMtExpoTargetContext } from "@rn-mt/shared";
+import type { RnMtExpoTargetContext } from "@molaidrislabs/shared";
 
 export interface ExpoPluginBridgeContract {
   targetContextSource: "rn-mt-state";

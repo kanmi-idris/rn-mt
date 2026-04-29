@@ -1,5 +1,5 @@
 {
-  "name": "@rn-mt/cli",
+  "name": "@molaidrislabs/cli",
   "version": "0.1.0",
   "description": "Bootstrap and project-local command runner for rn-mt.",
   "license": "MIT",
@@ -7,13 +7,32 @@
   "bin": {
     "rn-mt": "dist/index.js"
   },
-  "main": "dist/index.js",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "files": [
     "dist"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kanmi-idris/rn-mt.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/kanmi-idris/rn-mt/issues"
+  },
+  "homepage": "https://github.com/kanmi-idris/rn-mt/tree/main/packages/cli",
   "dependencies": {
-    "@rn-mt/core": "workspace:*",
-    "@rn-mt/shared": "workspace:*"
+    "@molaidrislabs/core": "workspace:*",
+    "@molaidrislabs/shared": "workspace:*"
   },
   "scripts": {
     "build": "tsup",

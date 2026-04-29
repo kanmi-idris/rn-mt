@@ -1,10 +1,10 @@
 /**
- * Defines the public runtime type aliases exposed by @rn-mt/runtime.
+ * Defines the public runtime type aliases exposed by @molaidrislabs/runtime.
  */
 import type {
   RnMtResolvedTenantRuntime,
   RnMtRuntimeAccessors,
-} from "@rn-mt/shared";
+} from "@molaidrislabs/shared";
 
 export type ResolvedTenantRuntime = RnMtResolvedTenantRuntime;
 

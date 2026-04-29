@@ -186,8 +186,8 @@ Start here:
 Run:
 
 ```bash
-pnpm --filter @rn-mt/docs typecheck
-pnpm --filter @rn-mt/docs build
+pnpm --filter @molaidrislabs/docs typecheck
+pnpm --filter @molaidrislabs/docs build
 ```
 
 Remember:

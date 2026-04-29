@@ -3,8 +3,8 @@
  */
 import { delimiter, join } from "node:path";
 
-import type { RnMtRepoAppKind } from "@rn-mt/core";
-import type { RnMtTargetPlatform } from "@rn-mt/shared";
+import type { RnMtRepoAppKind } from "@molaidrislabs/core";
+import type { RnMtTargetPlatform } from "@molaidrislabs/shared";
 
 import type {
   RnMtCliWorkflowCommand,

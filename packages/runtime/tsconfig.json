@@ -7,7 +7,7 @@
     "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
-      "@rn-mt/shared": ["../shared/src/index.ts"]
+      "@molaidrislabs/shared": ["../shared/src/index.ts"]
     }
   },
   "include": [

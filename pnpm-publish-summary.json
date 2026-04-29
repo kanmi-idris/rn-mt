@@ -1,0 +1,16 @@
+{
+	"publishedPackages": [
+		{
+			"name": "@molaidrislabs/runtime",
+			"version": "0.1.0"
+		},
+		{
+			"name": "@molaidrislabs/expo-plugin",
+			"version": "0.1.0"
+		},
+		{
+			"name": "@molaidrislabs/cli",
+			"version": "0.1.0"
+		}
+	]
+}

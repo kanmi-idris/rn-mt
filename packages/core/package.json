@@ -1,14 +1,34 @@
 {
-  "name": "@rn-mt/core",
+  "name": "@molaidrislabs/core",
   "version": "0.1.0",
   "description": "Core schema, analysis, sync, audit, and reconstruction engine for rn-mt.",
   "license": "MIT",
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "files": [
     "dist"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kanmi-idris/rn-mt.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/kanmi-idris/rn-mt/issues"
+  },
+  "homepage": "https://github.com/kanmi-idris/rn-mt/tree/main/packages/core",
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts --tsconfig tsconfig.build.json",
     "clean": "rimraf dist",
