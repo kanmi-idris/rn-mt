@@ -3,8 +3,8 @@
  */
 import { basename, dirname, resolve } from "node:path";
 
-import type { RnMtManifest } from "@molaidrislabs/core";
-import { manifest as manifestNamespace } from "@molaidrislabs/core";
+import type { RnMtManifest } from "@_molaidrislabs/core";
+import { manifest as manifestNamespace } from "@_molaidrislabs/core";
 
 import { RnMtCliWorkspaceFactory } from "./workspace";
 

@@ -16,7 +16,7 @@ packages/
   shared/
 ```
 
-### `@molaidrislabs/cli`
+### `@_molaidrislabs/cli`
 
 Owns:
 
@@ -28,7 +28,7 @@ Owns:
 
 It should stay orchestration-heavy and product-rule-light.
 
-### `@molaidrislabs/core`
+### `@_molaidrislabs/core`
 
 Owns the deepest behavior:
 
@@ -42,22 +42,22 @@ Owns the deepest behavior:
 - doctor
 - handoff
 
-### `@molaidrislabs/runtime`
+### `@_molaidrislabs/runtime`
 
 Owns the stable runtime accessor API that host apps consume.
 
-### `@molaidrislabs/expo-plugin`
+### `@_molaidrislabs/expo-plugin`
 
 Owns the narrow Expo config bridge.
 
-### `@molaidrislabs/shared`
+### `@_molaidrislabs/shared`
 
 Owns shared types and tiny utilities that do not belong in a product-specific
 core module.
 
 ## Core module boundaries
 
-`@molaidrislabs/core` is split into deep modules:
+`@_molaidrislabs/core` is split into deep modules:
 
 ```text
 packages/core/src/

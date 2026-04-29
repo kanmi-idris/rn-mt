@@ -22,7 +22,7 @@ interface RnMtPackageJsonLike {
 export function getRnMtPackageVersion() {
   const packageJsonPath = findPackageJsonPath(
     dirname(fileURLToPath(import.meta.url)),
-    "@molaidrislabs/core",
+    ["rn-mt", "@_molaidrislabs/rn-mt"],
   );
   const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
     version?: string;
@@ -35,7 +35,10 @@ export function getRnMtPackageVersion() {
  * Walks upward from the current module until it finds the owning package.json
  * for the expected package name.
  */
-function findPackageJsonPath(startDir: string, expectedPackageName: string) {
+function findPackageJsonPath(
+  startDir: string,
+  expectedPackageNames: string[],
+) {
   let currentDir = startDir;
 
   while (true) {
@@ -46,7 +49,10 @@ function findPackageJsonPath(startDir: string, expectedPackageName: string) {
         readFileSync(candidatePath, "utf8"),
       ) as { name?: string };
 
-      if (candidatePackageJson.name === expectedPackageName) {
+      if (
+        candidatePackageJson.name &&
+        expectedPackageNames.includes(candidatePackageJson.name)
+      ) {
         return candidatePath;
       }
     }
@@ -55,7 +61,7 @@ function findPackageJsonPath(startDir: string, expectedPackageName: string) {
 
     if (parentDir === currentDir) {
       throw new Error(
-        `Unable to locate package.json for ${expectedPackageName}.`,
+        `Unable to locate package.json for ${expectedPackageNames.join(" or ")}.`,
       );
     }
 
@@ -75,24 +81,11 @@ export function getLocalRnMtPackagePlan(appKind: RnMtRepoAppKind) {
     section: "dependencies" | "devDependencies";
   }> = [
     {
-      name: "@molaidrislabs/runtime",
+      name: "@_molaidrislabs/rn-mt",
       version,
       section: "dependencies",
-    },
-    {
-      name: "@molaidrislabs/cli",
-      version,
-      section: "devDependencies",
     },
   ];
-
-  if (appKind === "expo-managed" || appKind === "expo-prebuild") {
-    localPackages.push({
-      name: "@molaidrislabs/expo-plugin",
-      version,
-      section: "dependencies",
-    });
-  }
 
   return localPackages;
 }

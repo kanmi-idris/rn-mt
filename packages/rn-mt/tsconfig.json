@@ -4,17 +4,27 @@
     "composite": true,
     "rootDir": "..",
     "outDir": "dist",
+    "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
+      "@_molaidrislabs/cli": ["../cli/src/index.ts"],
       "@_molaidrislabs/core": ["../core/src/index.ts"],
+      "@_molaidrislabs/expo-plugin": ["../expo-plugin/src/index.ts"],
+      "@_molaidrislabs/runtime": ["../runtime/src/index.ts"],
       "@_molaidrislabs/shared": ["../shared/src/index.ts"]
     }
   },
   "include": [
     "src/*.ts",
     "src/**/*.ts",
+    "../cli/src/*.ts",
+    "../cli/src/**/*.ts",
     "../core/src/*.ts",
     "../core/src/**/*.ts",
+    "../expo-plugin/src/*.ts",
+    "../expo-plugin/src/**/*.ts",
+    "../runtime/src/*.ts",
+    "../runtime/src/**/*.ts",
     "../shared/src/*.ts",
     "../shared/src/**/*.ts"
   ]

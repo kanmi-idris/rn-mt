@@ -154,27 +154,11 @@ export class RnMtCliUpgradeModule {
       section: "dependencies" | "devDependencies";
     }> = [
       {
-        name: "@molaidrislabs/runtime",
+        name: "@_molaidrislabs/rn-mt",
         version,
         section: "dependencies",
-      },
-      {
-        name: "@molaidrislabs/cli",
-        version,
-        section: "devDependencies",
       },
     ];
-
-    if (
-      analyzeReport.repo.app.kind === "expo-managed" ||
-      analyzeReport.repo.app.kind === "expo-prebuild"
-    ) {
-      packages.push({
-        name: "@molaidrislabs/expo-plugin",
-        version,
-        section: "dependencies",
-      });
-    }
 
     return packages;
   }

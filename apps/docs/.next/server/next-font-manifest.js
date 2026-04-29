@@ -1,1 +1,0 @@
-self.__NEXT_FONT_MANIFEST='{"pages":{},"app":{"/Users/olaidris/Desktop/Code/rn-mt/apps/docs/app/layout":["static/media/d3ebbfd689654d3a-s.p.woff2","static/media/98e207f02528a563-s.p.woff2","static/media/db96af6b531dc71f-s.p.woff2","static/media/9cf9c6e84ed13b5e-s.p.woff2"]},"appUsingSizeAdjust":true,"pagesUsingSizeAdjust":false}';

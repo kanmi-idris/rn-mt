@@ -78,13 +78,13 @@ The exact set depends on the repo, but sync often writes files like:
 - generated `current` facade files
 - generated native include files
 
-## Read runtime state through `@molaidrislabs/runtime`
+## Read runtime state through `@_molaidrislabs/rn-mt/runtime`
 
 Your app should use the runtime accessors instead of reading the raw generated
 JSON directly.
 
 ```ts
-import { createRuntimeAccessors } from "@molaidrislabs/runtime";
+import { createRuntimeAccessors } from "@_molaidrislabs/rn-mt/runtime";
 ```
 
 That gives the app stable getters like:

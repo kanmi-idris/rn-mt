@@ -1,7 +1,7 @@
 /**
  * Implements the workflow hook CLI command module.
  */
-import { hashText } from "@molaidrislabs/shared";
+import { hashText } from "@_molaidrislabs/shared";
 
 import type {
   RnMtCliCommandContext,

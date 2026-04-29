@@ -7,8 +7,8 @@ import type {
   RnMtBaselineAnalyzeReport,
   RnMtManifest,
   RnMtRepoAppKind,
-} from "@molaidrislabs/core";
-import type { RnMtTargetPlatform } from "@molaidrislabs/shared";
+} from "@_molaidrislabs/core";
+import type { RnMtTargetPlatform } from "@_molaidrislabs/shared";
 import type { RnMtCliCoreAdapters } from "./core-adapters";
 import type { RnMtCliAuditModule } from "./shared/audit";
 import type { RnMtCliExecutionModule } from "./shared/execution";

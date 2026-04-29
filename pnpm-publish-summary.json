@@ -1,15 +1,7 @@
 {
 	"publishedPackages": [
 		{
-			"name": "@molaidrislabs/runtime",
-			"version": "0.1.0"
-		},
-		{
-			"name": "@molaidrislabs/expo-plugin",
-			"version": "0.1.0"
-		},
-		{
-			"name": "@molaidrislabs/cli",
+			"name": "@_molaidrislabs/rn-mt",
 			"version": "0.1.0"
 		}
 	]

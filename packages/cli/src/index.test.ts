@@ -13,7 +13,7 @@ import { basename, dirname, join } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { RnMtBaselineAnalyzeReport } from "@molaidrislabs/core";
+import type { RnMtBaselineAnalyzeReport } from "@_molaidrislabs/core";
 
 import { runCli } from "./index";
 
@@ -704,7 +704,7 @@ describe("cli analyze command", () => {
         name: "fixture-app",
         packageManager: "pnpm@10.25.0",
         devDependencies: {
-          "@molaidrislabs/cli": "0.1.0",
+      "@_molaidrislabs/rn-mt": "0.1.0",
         },
       }),
     );
@@ -749,7 +749,7 @@ describe("cli analyze command", () => {
     writeFileSync(
       join(linkedCliDir, "package.json"),
       JSON.stringify({
-        name: "@molaidrislabs/cli",
+      name: "@_molaidrislabs/rn-mt",
         version: "0.1.0",
       }),
     );
@@ -759,7 +759,7 @@ describe("cli analyze command", () => {
         name: "fixture-app",
         packageManager: "pnpm@10.25.0",
         devDependencies: {
-          "@molaidrislabs/cli": `link:${linkedCliDir}`,
+      "@_molaidrislabs/rn-mt": `link:${linkedCliDir}`,
         },
       }),
     );
@@ -806,7 +806,7 @@ describe("cli analyze command", () => {
         name: "fixture-app",
         packageManager: "pnpm@10.25.0",
         devDependencies: {
-          "@molaidrislabs/cli": "0.2.0",
+      "@_molaidrislabs/rn-mt": "0.2.0",
         },
       }),
     );
@@ -838,7 +838,7 @@ describe("cli analyze command", () => {
     expect(parsed.command).toBe("sync");
     expect(parsed.status).toBe("blocked");
     expect(parsed.reason).toContain(
-      "Global rn-mt CLI version 0.1.0 is incompatible with repo-local @molaidrislabs/cli version 0.2.0.",
+      "Global rn-mt CLI version 0.1.0 is incompatible with repo-local @_molaidrislabs/rn-mt version 0.2.0.",
     );
     expect(parsed.compatibility).toEqual({
       globalVersion: "0.1.0",
@@ -965,17 +965,7 @@ describe("cli analyze command", () => {
     expect(parsed.installCommand).toBe("pnpm install");
     expect(parsed.localPackages).toEqual([
       {
-        name: "@molaidrislabs/runtime",
-        version: "0.1.0",
-        section: "dependencies",
-      },
-      {
-        name: "@molaidrislabs/cli",
-        version: "0.1.0",
-        section: "devDependencies",
-      },
-      {
-        name: "@molaidrislabs/expo-plugin",
+      name: "@_molaidrislabs/rn-mt",
         version: "0.1.0",
         section: "dependencies",
       },
@@ -1080,13 +1070,7 @@ describe("cli analyze command", () => {
       '"rn-mt:start": "rn-mt run -- expo start"',
     );
     expect(readFileSync(join(repoDir, "package.json"), "utf8")).toContain(
-      '"@molaidrislabs/runtime": "0.1.0"',
-    );
-    expect(readFileSync(join(repoDir, "package.json"), "utf8")).toContain(
-      '"@molaidrislabs/expo-plugin": "0.1.0"',
-    );
-    expect(readFileSync(join(repoDir, "package.json"), "utf8")).toContain(
-      '"@molaidrislabs/cli": "0.1.0"',
+      '"@_molaidrislabs/rn-mt": "0.1.0"',
     );
     expect(
       readFileSync(
@@ -1156,11 +1140,7 @@ describe("cli analyze command", () => {
         packageManager: "pnpm@10.25.0",
         dependencies: {
           expo: "~52.0.0",
-          "@molaidrislabs/runtime": "0.1.0",
-          "@molaidrislabs/expo-plugin": "0.1.0",
-        },
-        devDependencies: {
-          "@molaidrislabs/cli": "0.1.0",
+      "@_molaidrislabs/rn-mt": "0.1.0",
         },
       }),
     );
@@ -1258,11 +1238,7 @@ describe("cli analyze command", () => {
         packageManager: "pnpm@10.25.0",
         dependencies: {
           expo: "~52.0.0",
-          "@molaidrislabs/runtime": "0.0.1",
-          "@molaidrislabs/expo-plugin": "0.0.1",
-        },
-        devDependencies: {
-          "@molaidrislabs/cli": "0.0.1",
+      "@_molaidrislabs/rn-mt": "0.0.1",
         },
       }),
     );
@@ -1360,11 +1336,7 @@ describe("cli analyze command", () => {
         status: "passed",
       }),
     ]);
-    expect(upgradedPackageJson.dependencies?.["@molaidrislabs/runtime"]).toBe("0.1.0");
-    expect(upgradedPackageJson.dependencies?.["@molaidrislabs/expo-plugin"]).toBe(
-      "0.1.0",
-    );
-    expect(upgradedPackageJson.devDependencies?.["@molaidrislabs/cli"]).toBe("0.1.0");
+    expect(upgradedPackageJson.dependencies?.["@_molaidrislabs/rn-mt"]).toBe("0.1.0");
     expect(migratedHookState.schemaVersion).toBe(1);
     expect(migratedHookState.tool).toBe("rn-mt");
     expect(parsed.audit.findings).toEqual([]);
@@ -1969,13 +1941,7 @@ describe("cli analyze command", () => {
     expect(output).toContain("Detected package manager: yarn (yarn-lock)");
     expect(output).toContain("Install local rn-mt packages: yarn install");
     expect(readFileSync(join(repoDir, "package.json"), "utf8")).toContain(
-      '"@molaidrislabs/runtime": "0.1.0"',
-    );
-    expect(readFileSync(join(repoDir, "package.json"), "utf8")).toContain(
-      '"@molaidrislabs/cli": "0.1.0"',
-    );
-    expect(readFileSync(join(repoDir, "package.json"), "utf8")).not.toContain(
-      "@molaidrislabs/expo-plugin",
+      '"@_molaidrislabs/rn-mt": "0.1.0"',
     );
     expect(stderr).not.toHaveBeenCalled();
   });
@@ -2121,7 +2087,7 @@ describe("cli analyze command", () => {
     mkdirSync(join(repoDir, ".git"));
     mkdirSync(join(repoDir, "theme"), { recursive: true });
     mkdirSync(join(repoDir, "src", "config"), { recursive: true });
-    mkdirSync(join(repoDir, "node_modules", "@rn-mt", "runtime"), {
+    mkdirSync(join(repoDir, "node_modules", "@_molaidrislabs", "runtime"), {
       recursive: true,
     });
     writeFileSync(
@@ -2155,15 +2121,21 @@ describe("cli analyze command", () => {
         2,
       ),
     );
+    mkdirSync(
+      join(repoDir, "node_modules", "@_molaidrislabs", "rn-mt", "runtime"),
+      {
+        recursive: true,
+      },
+    );
     writeFileSync(
-      join(repoDir, "node_modules", "@rn-mt", "runtime", "package.json"),
+      join(repoDir, "node_modules", "@_molaidrislabs", "rn-mt", "runtime", "package.json"),
       JSON.stringify({
-        name: "@molaidrislabs/runtime",
+        name: "@_molaidrislabs/rn-mt/runtime",
         types: "index.d.ts",
       }),
     );
     writeFileSync(
-      join(repoDir, "node_modules", "@rn-mt", "runtime", "index.d.ts"),
+      join(repoDir, "node_modules", "@_molaidrislabs", "rn-mt", "runtime", "index.d.ts"),
       [
         "export interface ResolvedTenantRuntime {",
         "  config: Record<string, unknown>;",
@@ -2297,7 +2269,7 @@ describe("cli analyze command", () => {
     mkdirSync(join(repoDir, ".git"));
     mkdirSync(join(repoDir, "src", "theme"), { recursive: true });
     mkdirSync(join(repoDir, "src", "config"), { recursive: true });
-    mkdirSync(join(repoDir, "node_modules", "@rn-mt", "runtime"), {
+    mkdirSync(join(repoDir, "node_modules", "@_molaidrislabs", "runtime"), {
       recursive: true,
     });
     writeFileSync(
@@ -2335,15 +2307,21 @@ describe("cli analyze command", () => {
         2,
       ),
     );
+    mkdirSync(
+      join(repoDir, "node_modules", "@_molaidrislabs", "rn-mt", "runtime"),
+      {
+        recursive: true,
+      },
+    );
     writeFileSync(
-      join(repoDir, "node_modules", "@rn-mt", "runtime", "package.json"),
+      join(repoDir, "node_modules", "@_molaidrislabs", "rn-mt", "runtime", "package.json"),
       JSON.stringify({
-        name: "@molaidrislabs/runtime",
+        name: "@_molaidrislabs/rn-mt/runtime",
         types: "index.d.ts",
       }),
     );
     writeFileSync(
-      join(repoDir, "node_modules", "@rn-mt", "runtime", "index.d.ts"),
+      join(repoDir, "node_modules", "@_molaidrislabs", "rn-mt", "runtime", "index.d.ts"),
       [
         "export interface ResolvedTenantRuntime {",
         "  config: Record<string, unknown>;",
@@ -6027,11 +6005,7 @@ describe("cli analyze command", () => {
     expect(outputPackageJson.scripts?.postinstall).toBeUndefined();
     expect(outputPackageJson.scripts?.["rn-mt:sync"]).toBeUndefined();
     expect(outputPackageJson.scripts?.["rn-mt:start"]).toBeUndefined();
-    expect(outputPackageJson.dependencies?.["@molaidrislabs/runtime"]).toBeUndefined();
-    expect(
-      outputPackageJson.dependencies?.["@molaidrislabs/expo-plugin"],
-    ).toBeUndefined();
-    expect(outputPackageJson.devDependencies?.["@molaidrislabs/cli"]).toBeUndefined();
+    expect(outputPackageJson.dependencies?.["@_molaidrislabs/rn-mt"]).toBeUndefined();
     expect(readFileSync(join(outputDir, "README.md"), "utf8")).toBe(
       "# Fixture App\n",
     );

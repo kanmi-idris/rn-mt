@@ -11,10 +11,8 @@ It is designed to convert a single-tenant mobile app into a manifest-driven mult
 
 ## Workspace packages
 
-- `@molaidrislabs/cli`: bootstrap and project-local command runner
-- `@molaidrislabs/core`: schema, merge engine, repo analysis, patch planning, sync, audit, handoff reconstruction contracts
-- `@molaidrislabs/runtime`: host-app runtime helpers and React-facing accessors
-- `@molaidrislabs/expo-plugin`: Expo config plugin adapter
+- `@_molaidrislabs/rn-mt`: the single public install, including the `rn-mt` CLI and the public `./runtime` and `./expo-plugin` subpaths
+- internal workspace packages still exist for architecture and maintenance, but they are not the intended public npm surface
 
 ## Current state
 

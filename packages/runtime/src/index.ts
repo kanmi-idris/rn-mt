@@ -1,5 +1,5 @@
 /**
- * Public entrypoint for the @molaidrislabs/runtime package.
+ * Public entrypoint for the @_molaidrislabs/runtime package.
  */
 export { createRuntimeAccessors } from "./runtime-accessors";
 

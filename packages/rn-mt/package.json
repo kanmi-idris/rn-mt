@@ -1,0 +1,56 @@
+{
+  "name": "@_molaidrislabs/rn-mt",
+  "version": "0.1.0",
+  "description": "Manifest-driven multitenancy conversion platform for React Native and Expo apps.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "rn-mt": "dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime.d.ts",
+      "import": "./dist/runtime.js",
+      "default": "./dist/runtime.js"
+    },
+    "./expo-plugin": {
+      "types": "./dist/expo-plugin.d.ts",
+      "import": "./dist/expo-plugin.js",
+      "default": "./dist/expo-plugin.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kanmi-idris/rn-mt.git",
+    "directory": "packages/rn-mt"
+  },
+  "bugs": {
+    "url": "https://github.com/kanmi-idris/rn-mt/issues"
+  },
+  "homepage": "https://github.com/kanmi-idris/rn-mt/tree/main/packages/rn-mt",
+  "scripts": {
+    "build": "tsup && rimraf dist/rn-mt",
+    "clean": "rimraf dist",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "rimraf": "^6.0.1",
+    "tsup": "^8.5.1",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,5 +1,6 @@
 {
-  "name": "@molaidrislabs/core",
+  "name": "@_molaidrislabs/core",
+  "private": true,
   "version": "0.1.0",
   "description": "Core schema, analysis, sync, audit, and reconstruction engine for rn-mt.",
   "license": "MIT",
@@ -13,9 +14,6 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     }
-  },
-  "publishConfig": {
-    "access": "public"
   },
   "files": [
     "dist"

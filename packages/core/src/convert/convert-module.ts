@@ -792,8 +792,8 @@ export class RnMtConvertModule {
         ? [
             expoComputedConfigBridgeBanner,
             'import appJson from "./app.json";',
-            'import { applyExpoTargetContext } from "@molaidrislabs/expo-plugin";',
-            'import type { RnMtExpoTargetContext } from "@molaidrislabs/expo-plugin";',
+            'import { applyExpoTargetContext } from "@_molaidrislabs/rn-mt/expo-plugin";',
+            'import type { RnMtExpoTargetContext } from "@_molaidrislabs/rn-mt/expo-plugin";',
             'import targetContext from "./rn-mt.generated.expo.js";',
             "",
             "export default applyExpoTargetContext(",
@@ -805,7 +805,7 @@ export class RnMtConvertModule {
         : [
             expoComputedConfigBridgeBanner,
             'const appJson = require("./app.json");',
-            'const { applyExpoTargetContext } = require("@molaidrislabs/expo-plugin");',
+            'const { applyExpoTargetContext } = require("@_molaidrislabs/rn-mt/expo-plugin");',
             'const targetContext = require("./rn-mt.generated.expo.js").default;',
             "",
             "module.exports = applyExpoTargetContext(appJson.expo, targetContext);",

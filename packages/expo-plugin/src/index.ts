@@ -1,5 +1,5 @@
 /**
- * Public entrypoint for the @molaidrislabs/expo-plugin package.
+ * Public entrypoint for the @_molaidrislabs/expo-plugin package.
  */
 export { applyExpoTargetContext } from "./apply-target-context";
 export { expoPluginBridgeContract } from "./bridge-contract";

@@ -187,13 +187,7 @@ function toLinkSpec(fromDir, packageDir) {
 function rewriteRnMtPackageLinks(targetDir) {
   const packageJsonPath = join(targetDir, 'package.json');
   const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
-  const packageNames = [
-    '@molaidrislabs/cli',
-    '@molaidrislabs/runtime',
-    '@molaidrislabs/expo-plugin',
-    '@molaidrislabs/core',
-    '@molaidrislabs/shared',
-  ];
+  const packageNames = ['@_molaidrislabs/rn-mt'];
   const dependencyMaps = [packageJson.dependencies, packageJson.devDependencies].filter(Boolean);
 
   for (const dependencyMap of dependencyMaps) {
@@ -205,15 +199,6 @@ function rewriteRnMtPackageLinks(targetDir) {
         );
       }
     }
-  }
-
-  packageJson.devDependencies ??= {};
-
-  for (const packageName of ['@molaidrislabs/core', '@molaidrislabs/shared']) {
-    packageJson.devDependencies[packageName] = toLinkSpec(
-      targetDir,
-      join(repoRoot, 'packages', packageName.split('/')[1]),
-    );
   }
 
   writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);

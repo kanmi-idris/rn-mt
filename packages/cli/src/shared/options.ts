@@ -1,8 +1,8 @@
 /**
  * Provides shared options behavior for CLI execution.
  */
-import type { RnMtRepoAppKind } from "@molaidrislabs/core";
-import type { RnMtTargetPlatform } from "@molaidrislabs/shared";
+import type { RnMtRepoAppKind } from "@_molaidrislabs/core";
+import type { RnMtTargetPlatform } from "@_molaidrislabs/shared";
 
 /**
  * Encapsulates options behavior behind a constructor-backed seam.

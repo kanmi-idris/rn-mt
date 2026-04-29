@@ -6,7 +6,7 @@
     "outDir": "dist",
     "baseUrl": ".",
     "paths": {
-      "@molaidrislabs/shared": ["../shared/src/index.ts"]
+      "@_molaidrislabs/shared": ["../shared/src/index.ts"]
     }
   },
   "include": [

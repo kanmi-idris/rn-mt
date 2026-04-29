@@ -31,7 +31,7 @@ export class RnMtCliVersionModule {
   getCliPackageVersion() {
     const packageJsonPath = this.findPackageJsonPath(
       dirname(fileURLToPath(import.meta.url)),
-      "@molaidrislabs/cli",
+      ["rn-mt", "@_molaidrislabs/rn-mt"],
     );
     const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
       version?: string;
@@ -62,8 +62,8 @@ export class RnMtCliVersionModule {
       };
 
       return (
-        packageJson.devDependencies?.["@molaidrislabs/cli"] ??
-        packageJson.dependencies?.["@molaidrislabs/cli"] ??
+        packageJson.devDependencies?.["@_molaidrislabs/rn-mt"] ??
+        packageJson.dependencies?.["@_molaidrislabs/rn-mt"] ??
         null
       );
     } catch {
@@ -118,7 +118,7 @@ export class RnMtCliVersionModule {
       globalVersion,
       localVersion,
       installCommand,
-      reason: `Global rn-mt CLI version ${globalVersion} is incompatible with repo-local @molaidrislabs/cli version ${localVersion}.`,
+      reason: `Global rn-mt CLI version ${globalVersion} is incompatible with repo-local @_molaidrislabs/rn-mt version ${localVersion}.`,
       remediation: [
         `Upgrade or reinstall the global rn-mt CLI to version ${localVersion}.`,
         installCommand
@@ -132,7 +132,10 @@ export class RnMtCliVersionModule {
    * Walks upward from the current module until it finds the owning package.json
    * for the expected package name.
    */
-  private findPackageJsonPath(startDir: string, expectedPackageName: string) {
+  private findPackageJsonPath(
+    startDir: string,
+    expectedPackageNames: string[],
+  ) {
     let currentDir = startDir;
 
     while (true) {
@@ -143,7 +146,10 @@ export class RnMtCliVersionModule {
           readFileSync(candidatePath, "utf8"),
         ) as { name?: string };
 
-        if (candidatePackageJson.name === expectedPackageName) {
+        if (
+          candidatePackageJson.name &&
+          expectedPackageNames.includes(candidatePackageJson.name)
+        ) {
           return candidatePath;
         }
       }
@@ -152,7 +158,7 @@ export class RnMtCliVersionModule {
 
       if (parentDir === currentDir) {
         throw new Error(
-          `Unable to locate package.json for ${expectedPackageName}.`,
+          `Unable to locate package.json for ${expectedPackageNames.join(" or ")}.`,
         );
       }
 

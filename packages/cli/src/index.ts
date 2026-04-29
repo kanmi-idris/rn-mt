@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Public entrypoint for the @molaidrislabs/cli package.
+ * Public entrypoint for the @_molaidrislabs/cli package.
  */
 
 import { RnMtCliApplication } from "./application";

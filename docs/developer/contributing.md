@@ -42,11 +42,11 @@ scripts/          verification helpers
 
 The monorepo is split by job:
 
-- `@molaidrislabs/cli`: commands, output, prompts, and subprocess workflow
-- `@molaidrislabs/core`: analyze, manifest logic, convert, sync, audit, doctor, and handoff
-- `@molaidrislabs/runtime`: the runtime accessors host apps read from
-- `@molaidrislabs/expo-plugin`: the Expo bridge layer
-- `@molaidrislabs/shared`: shared types and small cross-package utilities
+- `@_molaidrislabs/cli`: commands, output, prompts, and subprocess workflow
+- `@_molaidrislabs/core`: analyze, manifest logic, convert, sync, audit, doctor, and handoff
+- `@_molaidrislabs/runtime`: the runtime accessors host apps read from
+- `@_molaidrislabs/expo-plugin`: the Expo bridge layer
+- `@_molaidrislabs/shared`: shared types and small cross-package utilities
 
 ## Where to start reading code
 

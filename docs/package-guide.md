@@ -33,11 +33,8 @@ packages/
 
 The packages have very different jobs:
 
-- `@molaidrislabs/cli`: the command runner and user-facing workflow surface
-- `@molaidrislabs/core`: the deepest product logic
-- `@molaidrislabs/runtime`: the small runtime API that converted apps read
-- `@molaidrislabs/expo-plugin`: the small Expo bridge layer
-- `@molaidrislabs/shared`: shared public types and tiny cross-package utilities
+- `@_molaidrislabs/rn-mt`: the single public install, including the CLI and the public `./runtime` and `./expo-plugin` subpaths
+- internal workspace packages still exist for architecture and maintenance
 
 ## The One-Sentence Model
 
@@ -120,7 +117,7 @@ These rules explain most of the implementation:
 
 ## Package By Package
 
-### `@molaidrislabs/cli`
+### `@_molaidrislabs/cli`
 
 This package is the public command surface.
 
@@ -142,7 +139,7 @@ Important implementation seams:
 
 The CLI is intentionally shallow compared to core. It should orchestrate behavior, not own the deepest rules.
 
-### `@molaidrislabs/core`
+### `@_molaidrislabs/core`
 
 This package holds the main product logic.
 
@@ -175,9 +172,9 @@ Each module exists for a specific reason:
 - `audit/`: deterministic and heuristic repo checks
 - `handoff/`: preflight, flattening, cleanup, sanitization, and tenant-isolation export logic
 
-`@molaidrislabs/core` is the package you read when you want to understand how the product actually behaves.
+`@_molaidrislabs/core` is the package you read when you want to understand how the product actually behaves.
 
-### `@molaidrislabs/runtime`
+### `@_molaidrislabs/runtime`
 
 This package is intentionally tiny.
 
@@ -190,7 +187,7 @@ In practice, it is the safe reader layer for:
 - active environment
 - resolved routes, features, menus, and actions
 
-### `@molaidrislabs/expo-plugin`
+### `@_molaidrislabs/expo-plugin`
 
 This package is the Expo-specific bridge.
 
@@ -202,7 +199,7 @@ Its job is not to own all Expo behavior. Its job is to:
 
 It exists because Expo config resolution is its own surface and should not leak all Expo-specific behavior into the generic runtime package.
 
-### `@molaidrislabs/shared`
+### `@_molaidrislabs/shared`
 
 This package holds the small shared surface that multiple packages need.
 
@@ -219,7 +216,7 @@ The common command flow is:
 
 ```text
 user command
-  -> @molaidrislabs/cli entrypoint
+-> @_molaidrislabs/cli entrypoint
   -> CLI application builds execution context
   -> CLI dispatcher picks a command module
   -> command module calls core-backed adapters

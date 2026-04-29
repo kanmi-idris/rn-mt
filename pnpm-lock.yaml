@@ -196,10 +196,10 @@ importers:
 
   packages/cli:
     dependencies:
-      '@molaidrislabs/core':
+      '@_molaidrislabs/core':
         specifier: workspace:*
         version: link:../core
-      '@molaidrislabs/shared':
+      '@_molaidrislabs/shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:
@@ -230,10 +230,10 @@ importers:
 
   packages/expo-plugin:
     dependencies:
-      '@molaidrislabs/core':
+      '@_molaidrislabs/core':
         specifier: workspace:*
         version: link:../core
-      '@molaidrislabs/shared':
+      '@_molaidrislabs/shared':
         specifier: workspace:*
         version: link:../shared
       expo:
@@ -250,9 +250,21 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
+  packages/rn-mt:
+    devDependencies:
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.1.3
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.10)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
   packages/runtime:
     dependencies:
-      '@molaidrislabs/shared':
+      '@_molaidrislabs/shared':
         specifier: workspace:*
         version: link:../shared
       react:

@@ -4,7 +4,7 @@ This document records the initial package and module boundaries for the `rn-mt` 
 
 ## Package boundaries
 
-### `@molaidrislabs/core`
+### `@_molaidrislabs/core`
 
 The core package owns the deepest and most stable modules in the system. It should eventually encapsulate most of the difficult product behavior behind small interfaces.
 
@@ -21,9 +21,9 @@ Planned deep modules:
 - static registry resolver for routes, features, and menus
 - asset pipeline and fingerprinting engine
 
-### `@molaidrislabs/cli`
+### `@_molaidrislabs/cli`
 
-The CLI package is a thin orchestration layer. It should remain relatively shallow and route most complex logic into `@molaidrislabs/core`.
+The CLI package is a thin orchestration layer. It should remain relatively shallow and route most complex logic into `@_molaidrislabs/core`.
 
 Responsibilities:
 
@@ -33,7 +33,7 @@ Responsibilities:
 - package manager orchestration
 - mapping CLI commands to core services
 
-### `@molaidrislabs/runtime`
+### `@_molaidrislabs/runtime`
 
 The runtime package exposes a stable host-app integration surface.
 
@@ -43,7 +43,7 @@ Responsibilities:
 - exposing React helpers and stable selectors
 - keeping host apps off internal implementation details
 
-### `@molaidrislabs/expo-plugin`
+### `@_molaidrislabs/expo-plugin`
 
 The Expo package is intentionally narrow.
 
@@ -64,7 +64,7 @@ Fixture matrix:
 - Expo prebuild app
 - intentionally messy existing app fixture with custom scripts and config
 
-Deep modules in `@molaidrislabs/core` should additionally have isolated contract tests, especially for:
+Deep modules in `@_molaidrislabs/core` should additionally have isolated contract tests, especially for:
 
 - manifest validation
 - override resolution

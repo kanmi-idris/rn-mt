@@ -1,5 +1,6 @@
 {
-  "name": "@molaidrislabs/expo-plugin",
+  "name": "@_molaidrislabs/expo-plugin",
+  "private": true,
   "version": "0.1.0",
   "description": "Expo config plugin adapter for rn-mt target resolution.",
   "license": "MIT",
@@ -13,9 +14,6 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     }
-  },
-  "publishConfig": {
-    "access": "public"
   },
   "files": [
     "dist"
@@ -33,8 +31,8 @@
     "expo": ">=52"
   },
   "dependencies": {
-    "@molaidrislabs/core": "workspace:*",
-    "@molaidrislabs/shared": "workspace:*"
+    "@_molaidrislabs/core": "workspace:*",
+    "@_molaidrislabs/shared": "workspace:*"
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts --tsconfig tsconfig.build.json && rimraf dist/expo-plugin",

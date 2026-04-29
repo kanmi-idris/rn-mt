@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import { readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
-import { hashText, type RnMtTargetPlatform } from "@molaidrislabs/shared";
+import { hashText, type RnMtTargetPlatform } from "@_molaidrislabs/shared";
 
 import { RnMtCliFilesModule } from "./files";
 

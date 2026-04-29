@@ -1,7 +1,7 @@
 /**
  * Provides shared audit behavior for CLI execution.
  */
-import type { RnMtAuditFinding, RnMtAuditSeverity } from "@molaidrislabs/core";
+import type { RnMtAuditFinding, RnMtAuditSeverity } from "@_molaidrislabs/core";
 
 /**
  * Encapsulates audit behavior behind a constructor-backed seam.

@@ -1,5 +1,6 @@
 {
-  "name": "@molaidrislabs/runtime",
+  "name": "@_molaidrislabs/runtime",
+  "private": true,
   "version": "0.1.0",
   "description": "Runtime integration helpers for converted rn-mt host apps.",
   "license": "MIT",
@@ -14,9 +15,6 @@
       "default": "./dist/index.js"
     }
   },
-  "publishConfig": {
-    "access": "public"
-  },
   "files": [
     "dist"
   ],
@@ -30,7 +28,7 @@
   },
   "homepage": "https://github.com/kanmi-idris/rn-mt/tree/main/packages/runtime",
   "dependencies": {
-    "@molaidrislabs/shared": "workspace:*"
+    "@_molaidrislabs/shared": "workspace:*"
   },
   "peerDependencies": {
     "react": ">=18"

@@ -4,7 +4,7 @@
 import { cpSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
 
-import { hashText } from "@molaidrislabs/shared";
+import { hashText } from "@_molaidrislabs/shared";
 
 import type { RnMtCliOwnershipMetadataFile } from "../types";
 

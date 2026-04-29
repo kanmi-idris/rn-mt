@@ -3,7 +3,7 @@
  */
 import { readSync } from "node:fs";
 
-import type { RnMtBaselineAnalyzeReport, RnMtRepoAppKind } from "@molaidrislabs/core";
+import type { RnMtBaselineAnalyzeReport, RnMtRepoAppKind } from "@_molaidrislabs/core";
 
 import type { RnMtCliAnalyzeBlockResult, RnMtCliIo } from "../types";
 

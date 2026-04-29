@@ -78,7 +78,7 @@ split into deep modules:
   CLI-only modules for options, workflow dispatch, execution scoping, files,
   hooks, interaction, audit formatting, version compatibility, and upgrade.
 - `core-adapters.ts`
-  Adapter seam between CLI and `@molaidrislabs/core`.
+Adapter seam between CLI and `@_molaidrislabs/core`.
 
 ## packages/runtime
 
