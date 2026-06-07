@@ -23,8 +23,8 @@ pnpm examples:verify
 
 Why `pnpm build` first:
 
-- `scripts/verify-examples.mjs` requires the built CLI entrypoint at
-  `packages/cli/dist/index.js`
+- `scripts/verify-examples.mjs` requires the built public CLI entrypoint at
+  `packages/rn-mt/dist/cli.js`
 - it will fail early if the CLI has not been built
 
 ## Docs loop
@@ -55,9 +55,9 @@ then rerun the docs build or dev server.
 For a single CLI behavior, reproduce with the smallest command first:
 
 ```bash
-node packages/cli/dist/index.js analyze --app-root .
-node packages/cli/dist/index.js sync --app-root .
-node packages/cli/dist/index.js audit --app-root . --json
+node packages/rn-mt/dist/cli.js analyze --app-root .
+node packages/rn-mt/dist/cli.js sync --app-root .
+node packages/rn-mt/dist/cli.js audit --app-root . --json
 ```
 
 Prefer this before running the full example matrix.
@@ -72,7 +72,7 @@ tests/tmp/examples/*
 
 Then it:
 
-- installs dependencies in the sandbox
+- installs dependencies in the standalone sandbox
 - runs `rn-mt` commands against the sandbox copy
 - typechecks where configured
 - runs static config smoke checks

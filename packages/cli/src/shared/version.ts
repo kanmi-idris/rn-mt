@@ -31,7 +31,7 @@ export class RnMtCliVersionModule {
   getCliPackageVersion() {
     const packageJsonPath = this.findPackageJsonPath(
       dirname(fileURLToPath(import.meta.url)),
-      ["rn-mt", "@_molaidrislabs/rn-mt"],
+      "@_molaidrislabs/rn-mt",
     );
     const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
       version?: string;
@@ -132,10 +132,7 @@ export class RnMtCliVersionModule {
    * Walks upward from the current module until it finds the owning package.json
    * for the expected package name.
    */
-  private findPackageJsonPath(
-    startDir: string,
-    expectedPackageNames: string[],
-  ) {
+  private findPackageJsonPath(startDir: string, expectedPackageName: string) {
     let currentDir = startDir;
 
     while (true) {
@@ -146,11 +143,25 @@ export class RnMtCliVersionModule {
           readFileSync(candidatePath, "utf8"),
         ) as { name?: string };
 
-        if (
-          candidatePackageJson.name &&
-          expectedPackageNames.includes(candidatePackageJson.name)
-        ) {
+        if (candidatePackageJson.name === expectedPackageName) {
           return candidatePath;
+        }
+      }
+
+      const monorepoPublicPackagePath = join(
+        currentDir,
+        "packages",
+        "rn-mt",
+        "package.json",
+      );
+
+      if (existsSync(monorepoPublicPackagePath)) {
+        const monorepoPublicPackageJson = JSON.parse(
+          readFileSync(monorepoPublicPackagePath, "utf8"),
+        ) as { name?: string };
+
+        if (monorepoPublicPackageJson.name === expectedPackageName) {
+          return monorepoPublicPackagePath;
         }
       }
 
@@ -158,7 +169,7 @@ export class RnMtCliVersionModule {
 
       if (parentDir === currentDir) {
         throw new Error(
-          `Unable to locate package.json for ${expectedPackageNames.join(" or ")}.`,
+          `Unable to locate package.json for ${expectedPackageName}.`,
         );
       }
 
@@ -177,16 +188,40 @@ export class RnMtCliVersionModule {
       Pick<RnMtCliWorkspaceOverrides, "fileExists" | "readFile">
     >,
   ) {
-    const linkedPackageDir = this.resolveLinkedPackageDir(cwd, versionSpecifier);
+    const linkedPackageDir = this.resolveLinkedPackageDir(
+      cwd,
+      versionSpecifier,
+    );
 
-    if (!linkedPackageDir) {
-      return versionSpecifier;
+    if (linkedPackageDir) {
+      const linkedPackageVersion = this.readPackageVersion(
+        linkedPackageDir,
+        options,
+      );
+
+      if (linkedPackageVersion) {
+        return linkedPackageVersion;
+      }
     }
 
-    const packageJsonPath = join(linkedPackageDir, "package.json");
+    return (
+      this.readPackageVersion(
+        join(cwd, "node_modules", "@_molaidrislabs", "rn-mt"),
+        options,
+      ) ?? versionSpecifier
+    );
+  }
+
+  private readPackageVersion(
+    packageDir: string,
+    options: Required<
+      Pick<RnMtCliWorkspaceOverrides, "fileExists" | "readFile">
+    >,
+  ) {
+    const packageJsonPath = join(packageDir, "package.json");
 
     if (!options.fileExists(packageJsonPath)) {
-      return versionSpecifier;
+      return null;
     }
 
     try {
@@ -194,9 +229,9 @@ export class RnMtCliVersionModule {
         version?: string;
       };
 
-      return packageJson.version ?? versionSpecifier;
+      return packageJson.version ?? null;
     } catch {
-      return versionSpecifier;
+      return null;
     }
   }
 

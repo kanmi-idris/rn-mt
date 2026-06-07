@@ -1,6 +1,6 @@
 {
   "name": "@_molaidrislabs/rn-mt",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "description": "Manifest-driven multitenancy conversion platform for React Native and Expo apps.",
   "license": "MIT",
   "type": "module",
@@ -35,13 +35,13 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/kanmi-idris/rn-mt.git",
+    "url": "git+https://github.com/kanmi-idris/rn-mt.git",
     "directory": "packages/rn-mt"
   },
   "bugs": {
     "url": "https://github.com/kanmi-idris/rn-mt/issues"
   },
-  "homepage": "https://github.com/kanmi-idris/rn-mt/tree/main/packages/rn-mt",
+  "homepage": "https://kanmi-idris.github.io/rn-mt/",
   "scripts": {
     "build": "tsup && rimraf dist/rn-mt",
     "clean": "rimraf dist",

@@ -28,7 +28,7 @@
   },
   "homepage": "https://github.com/kanmi-idris/rn-mt/tree/main/packages/core",
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts --tsconfig tsconfig.build.json",
+    "build": "tsup src/index.ts --format esm --dts --tsconfig tsconfig.build.json",
     "clean": "rimraf dist",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit"

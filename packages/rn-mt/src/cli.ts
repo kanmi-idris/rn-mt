@@ -3,12 +3,13 @@
 /**
  * CLI binary entrypoint for the single-package rn-mt distribution.
  */
-import { pathToFileURL } from "node:url";
-
 import { runCli } from "@_molaidrislabs/cli";
 
+import { isDirectCliExecution } from "./direct-execution";
+
+export { isDirectCliExecution } from "./direct-execution";
 export { runCli } from "@_molaidrislabs/cli";
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (isDirectCliExecution(import.meta.url, process.argv[1])) {
   process.exit(runCli(process.argv.slice(2)));
 }

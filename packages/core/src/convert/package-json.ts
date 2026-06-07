@@ -22,7 +22,7 @@ interface RnMtPackageJsonLike {
 export function getRnMtPackageVersion() {
   const packageJsonPath = findPackageJsonPath(
     dirname(fileURLToPath(import.meta.url)),
-    ["rn-mt", "@_molaidrislabs/rn-mt"],
+    "@_molaidrislabs/rn-mt",
   );
   const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
     version?: string;
@@ -35,10 +35,7 @@ export function getRnMtPackageVersion() {
  * Walks upward from the current module until it finds the owning package.json
  * for the expected package name.
  */
-function findPackageJsonPath(
-  startDir: string,
-  expectedPackageNames: string[],
-) {
+function findPackageJsonPath(startDir: string, expectedPackageName: string) {
   let currentDir = startDir;
 
   while (true) {
@@ -49,11 +46,25 @@ function findPackageJsonPath(
         readFileSync(candidatePath, "utf8"),
       ) as { name?: string };
 
-      if (
-        candidatePackageJson.name &&
-        expectedPackageNames.includes(candidatePackageJson.name)
-      ) {
+      if (candidatePackageJson.name === expectedPackageName) {
         return candidatePath;
+      }
+    }
+
+    const monorepoPublicPackagePath = join(
+      currentDir,
+      "packages",
+      "rn-mt",
+      "package.json",
+    );
+
+    if (existsSync(monorepoPublicPackagePath)) {
+      const monorepoPublicPackageJson = JSON.parse(
+        readFileSync(monorepoPublicPackagePath, "utf8"),
+      ) as { name?: string };
+
+      if (monorepoPublicPackageJson.name === expectedPackageName) {
+        return monorepoPublicPackagePath;
       }
     }
 
@@ -61,7 +72,7 @@ function findPackageJsonPath(
 
     if (parentDir === currentDir) {
       throw new Error(
-        `Unable to locate package.json for ${expectedPackageNames.join(" or ")}.`,
+        `Unable to locate package.json for ${expectedPackageName}.`,
       );
     }
 
@@ -194,8 +205,10 @@ export function createConvertedPackageJsonContents(
   for (const localPackage of localPackages) {
     if (localPackage.section === "dependencies") {
       dependencies[localPackage.name] = localPackage.version;
+      delete devDependencies[localPackage.name];
     } else {
       devDependencies[localPackage.name] = localPackage.version;
+      delete dependencies[localPackage.name];
     }
   }
 

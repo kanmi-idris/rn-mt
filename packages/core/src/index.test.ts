@@ -47,6 +47,17 @@ function getWorkspace(rootDir: string) {
   return new RnMtWorkspace({ rootDir });
 }
 
+function getPublicPackageVersion() {
+  const packageJson = JSON.parse(
+    readFileSync(
+      join(process.cwd(), "packages", "rn-mt", "package.json"),
+      "utf8",
+    ),
+  ) as { version: string };
+
+  return packageJson.version;
+}
+
 function getAnalyzeModule(rootDir: string) {
   return new RnMtAnalyzeModule({ workspace: getWorkspace(rootDir) });
 }
@@ -1241,7 +1252,11 @@ describe("tenant rename helpers", () => {
           toPath: join(repoDir, ".env.acme-beta.dev"),
         },
         {
-          fromPath: join(repoDir, "ios", "rn-mt.generated.demo-app-dev.xcconfig"),
+          fromPath: join(
+            repoDir,
+            "ios",
+            "rn-mt.generated.demo-app-dev.xcconfig",
+          ),
           toPath: join(
             repoDir,
             "ios",
@@ -2791,7 +2806,8 @@ describe("convert helpers", () => {
     );
     const appSharedFile = result.movedFiles.find(
       (file) =>
-        file.destinationPath === join(repoDir, "src", "rn-mt", "shared", "App.tsx"),
+        file.destinationPath ===
+        join(repoDir, "src", "rn-mt", "shared", "App.tsx"),
     );
 
     expect(result.movedFiles).toEqual(
@@ -2896,7 +2912,7 @@ describe("convert helpers", () => {
         'import { logger } from "@/services/logger";',
         'import type { IconProps } from "@/types/icon";',
         "",
-        "const loadLogger = () => import(\"@/services/logger\");",
+        'const loadLogger = () => import("@/services/logger");',
         "",
         "export default function App() {",
         "  return BrandBanner && logger && loadLogger && (null as IconProps | null);",
@@ -2920,7 +2936,8 @@ describe("convert helpers", () => {
     const result = createConvertResult(repoDir, createConvertManifest(repoDir));
     const appSharedFile = result.movedFiles.find(
       (file) =>
-        file.destinationPath === join(repoDir, "src", "rn-mt", "shared", "App.tsx"),
+        file.destinationPath ===
+        join(repoDir, "src", "rn-mt", "shared", "App.tsx"),
     );
     const tsconfigFile = result.movedFiles.find(
       (file) => file.destinationPath === join(repoDir, "tsconfig.json"),
@@ -3074,7 +3091,7 @@ describe("convert helpers", () => {
         "module.exports = function (api) {",
         "  api.cache(true);",
         "  return {",
-        "    plugins: [[\"module-resolver\", {",
+        '    plugins: [["module-resolver", {',
         "      alias: {",
         '        "@api": "./src/api",',
         '        "@apiConfig": "./apiConfig.ts",',
@@ -3109,7 +3126,8 @@ describe("convert helpers", () => {
     const result = createConvertResult(repoDir, createConvertManifest(repoDir));
     const appSharedFile = result.movedFiles.find(
       (file) =>
-        file.destinationPath === join(repoDir, "src", "rn-mt", "shared", "App.tsx"),
+        file.destinationPath ===
+        join(repoDir, "src", "rn-mt", "shared", "App.tsx"),
     );
 
     expect(appSharedFile?.contents).toContain(
@@ -3140,7 +3158,10 @@ describe("convert helpers", () => {
       "export default function App() { return null; }\n",
     );
     writeFileSync(join(repoDir, ".DS_Store"), "root-metadata");
-    writeFileSync(join(repoDir, "src", "config", ".DS_Store"), "nested-metadata");
+    writeFileSync(
+      join(repoDir, "src", "config", ".DS_Store"),
+      "nested-metadata",
+    );
     writeFileSync(
       join(repoDir, "src", "config", "index.ts"),
       "export const config = { brand: 'fixture' };\n",
@@ -3302,7 +3323,9 @@ describe("convert helpers", () => {
 
   it("preserves binary asset bytes when convert moves assets into shared and current", () => {
     const repoDir = createTempRepo("rn-mt-core-convert-binary-assets-");
-    const iconBytes = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 255, 12]);
+    const iconBytes = Buffer.from([
+      137, 80, 78, 71, 13, 10, 26, 10, 0, 255, 12,
+    ]);
 
     mkdirSync(join(repoDir, "assets"), { recursive: true });
     writeFileSync(
@@ -3314,7 +3337,9 @@ describe("convert helpers", () => {
     );
     writeFileSync(
       join(repoDir, "app.json"),
-      JSON.stringify({ expo: { name: "FixtureApp", icon: "./assets/icon.png" } }),
+      JSON.stringify({
+        expo: { name: "FixtureApp", icon: "./assets/icon.png" },
+      }),
     );
     writeFileSync(
       join(repoDir, "App.tsx"),
@@ -3476,6 +3501,7 @@ describe("convert helpers", () => {
           react: "19.0.0",
         },
         devDependencies: {
+          "@_molaidrislabs/rn-mt": "file:../_molaidrislabs-rn-mt.tgz",
           typescript: "^5.7.2",
         },
       }),
@@ -3493,6 +3519,7 @@ describe("convert helpers", () => {
     const packageJsonFile = result.movedFiles.find(
       (file) => file.sourcePath === join(repoDir, "package.json"),
     );
+    const rewrittenPackageJson = JSON.parse(asText(packageJsonFile?.contents));
 
     expect(packageJsonFile?.destinationPath).toBe(
       join(repoDir, "package.json"),
@@ -3534,7 +3561,15 @@ describe("convert helpers", () => {
     expect(packageJsonFile?.contents).toContain(
       '"postinstall": "rn-mt hook postinstall"',
     );
-    expect(packageJsonFile?.contents).toContain('"@_molaidrislabs/rn-mt": "0.1.0"');
+    expect(packageJsonFile?.contents).toContain(
+      `"@_molaidrislabs/rn-mt": "${getPublicPackageVersion()}"`,
+    );
+    expect(rewrittenPackageJson.dependencies["@_molaidrislabs/rn-mt"]).toBe(
+      getPublicPackageVersion(),
+    );
+    expect(
+      rewrittenPackageJson.devDependencies["@_molaidrislabs/rn-mt"],
+    ).toBeUndefined();
     expect(packageJsonFile?.contents).toContain('"test": "vitest"');
     expect(result.packageManager).toEqual({
       name: "pnpm",
@@ -3543,8 +3578,8 @@ describe("convert helpers", () => {
     });
     expect(result.localPackages).toEqual([
       {
-      name: "@_molaidrislabs/rn-mt",
-        version: "0.1.0",
+        name: "@_molaidrislabs/rn-mt",
+        version: getPublicPackageVersion(),
         section: "dependencies",
       },
     ]);
@@ -3614,7 +3649,9 @@ describe("convert helpers", () => {
       (file) => file.sourcePath === join(repoDir, "package.json"),
     );
 
-    expect(packageJsonFile?.contents).toContain('"@_molaidrislabs/rn-mt": "0.1.0"');
+    expect(packageJsonFile?.contents).toContain(
+      `"@_molaidrislabs/rn-mt": "${getPublicPackageVersion()}"`,
+    );
     expect(result.packageManager).toEqual({
       name: "yarn",
       source: "yarn-lock",
@@ -3622,8 +3659,8 @@ describe("convert helpers", () => {
     });
     expect(result.localPackages).toEqual([
       {
-      name: "@_molaidrislabs/rn-mt",
-        version: "0.1.0",
+        name: "@_molaidrislabs/rn-mt",
+        version: getPublicPackageVersion(),
         section: "dependencies",
       },
     ]);
@@ -4355,6 +4392,120 @@ describe("sync helpers", () => {
     });
   });
 
+  it("regenerates current facades for the selected tenant", () => {
+    const repoDir = createTempRepo("rn-mt-core-sync-current-facades-");
+
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "app", "(tabs)"), {
+      recursive: true,
+    });
+    mkdirSync(join(repoDir, "src", "rn-mt", "shared", "constants"), {
+      recursive: true,
+    });
+    mkdirSync(
+      join(repoDir, "src", "rn-mt", "tenants", "acme", "app", "(tabs)"),
+      {
+        recursive: true,
+      },
+    );
+    mkdirSync(
+      join(repoDir, "src", "rn-mt", "tenants", "bravo", "app", "(tabs)"),
+      { recursive: true },
+    );
+    writeFileSync(join(repoDir, "tsconfig.json"), "{}\n");
+    writeFileSync(
+      join(repoDir, "src", "rn-mt", "shared", "app", "(tabs)", "index.tsx"),
+      "export default function SharedHome() { return null; }\n",
+    );
+    writeFileSync(
+      join(repoDir, "src", "rn-mt", "shared", "constants", "theme.ts"),
+      "export const tint = '#111111';\n",
+    );
+    writeFileSync(
+      join(
+        repoDir,
+        "src",
+        "rn-mt",
+        "tenants",
+        "acme",
+        "app",
+        "(tabs)",
+        "index.tsx",
+      ),
+      "export default function AcmeHome() { return null; }\n",
+    );
+    writeFileSync(
+      join(
+        repoDir,
+        "src",
+        "rn-mt",
+        "tenants",
+        "bravo",
+        "app",
+        "(tabs)",
+        "index.tsx",
+      ),
+      "export default function BravoHome() { return null; }\n",
+    );
+
+    const manifestValue = parseManifest(
+      JSON.stringify({
+        schemaVersion: 1,
+        source: { rootDir: repoDir },
+        defaults: { tenant: "acme", environment: "dev" },
+        tenants: {
+          acme: { displayName: "Acme" },
+          bravo: { displayName: "Bravo" },
+        },
+        environments: {
+          dev: { displayName: "Development" },
+        },
+      }),
+    );
+    const result = createSyncResult(repoDir, manifestValue, {
+      tenant: "bravo",
+      environment: "dev",
+    });
+    const currentHome = result.generatedFiles.find(
+      (file) =>
+        file.path ===
+        join(repoDir, "src", "rn-mt", "current", "app", "(tabs)", "index.tsx"),
+    );
+    const currentTheme = result.generatedFiles.find(
+      (file) =>
+        file.path ===
+        join(repoDir, "src", "rn-mt", "current", "constants", "theme.ts"),
+    );
+    const currentRuntime = result.generatedFiles.find(
+      (file) =>
+        file.path === join(repoDir, "src", "rn-mt", "current", "runtime.ts"),
+    );
+    const ownershipMetadata = result.generatedFiles.find(
+      (file) => file.kind === "ownership-metadata",
+    );
+
+    expect(asText(currentHome?.contents)).toContain(
+      "../../../tenants/bravo/app/(tabs)/index",
+    );
+    expect(asText(currentTheme?.contents)).toContain(
+      "../../shared/constants/theme",
+    );
+    expect(asText(currentRuntime?.contents)).toContain(
+      "../../../rn-mt.generated.runtime.json",
+    );
+    expect(JSON.parse(asText(ownershipMetadata?.contents)).artifacts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: "src/rn-mt/current/app/(tabs)/index.tsx",
+          kind: "current-facade",
+        }),
+        expect.objectContaining({
+          path: "src/rn-mt/current/runtime.ts",
+          kind: "current-facade",
+        }),
+      ]),
+    );
+  });
+
   it("rejects sync when the manifest default target is invalid", () => {
     const manifest = parseManifest(
       JSON.stringify({
@@ -4923,7 +5074,10 @@ describe("sync helpers", () => {
 
     mkdirSync(join(repoDir, "android", "app"), { recursive: true });
     mkdirSync(join(repoDir, "ios", "KeepNexus.xcodeproj"), { recursive: true });
-    writeFileSync(join(repoDir, "android", "app", "build.gradle"), "android {}\n");
+    writeFileSync(
+      join(repoDir, "android", "app", "build.gradle"),
+      "android {}\n",
+    );
 
     const manifest = parseManifest(
       JSON.stringify({

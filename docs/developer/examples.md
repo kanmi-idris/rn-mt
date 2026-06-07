@@ -11,10 +11,9 @@ Look in:
 examples/
 ```
 
-The repo includes both:
-
-- source fixtures that model pre-conversion apps
-- committed multitenant fixtures that model already-converted apps
+The repo currently includes source fixtures that model pre-conversion apps.
+Committed multitenant fixtures can also be added under `examples/` when a
+converted app shape needs ongoing coverage.
 
 ## Why the examples matter
 
@@ -25,7 +24,7 @@ They are part of the package verification strategy:
 - different app kinds
 - different entry models
 - different alias setups
-- different tenant shapes
+- different tenant shapes when committed multitenant fixtures are present
 
 ## Example verification
 
@@ -56,8 +55,8 @@ Start with:
 
 - `scripts/verify-examples.mjs`
 - the failing example folder under `examples/`
-- the generated sandbox under `tests/tmp/examples/` if the verifier kept it for
-  inspection
+- the standalone generated sandbox under `tests/tmp/examples/` if the verifier
+  kept it for inspection
 
 ## When to add or change an example
 

@@ -26,7 +26,7 @@ Start here:
 Reproduce with:
 
 ```bash
-node packages/cli/dist/index.js analyze --app-root . --json
+node packages/rn-mt/dist/cli.js analyze --app-root . --json
 ```
 
 If fixture-specific, compare with the relevant example metadata in
@@ -51,8 +51,8 @@ Start here:
 Reproduce with:
 
 ```bash
-node packages/cli/dist/index.js target set --tenant northstar --environment dev --app-root .
-node packages/cli/dist/index.js sync --json --app-root .
+node packages/rn-mt/dist/cli.js target set --tenant northstar --environment dev --app-root .
+node packages/rn-mt/dist/cli.js sync --json --app-root .
 ```
 
 Inspect:
@@ -130,8 +130,8 @@ Start here:
 Reproduce with:
 
 ```bash
-node packages/cli/dist/index.js hook prestart --app-root .
-node packages/cli/dist/index.js start --app-root .
+node packages/rn-mt/dist/cli.js hook prestart --app-root .
+node packages/rn-mt/dist/cli.js start --app-root .
 ```
 
 If the issue only happens in examples, inspect the start smoke in
@@ -148,8 +148,8 @@ Start here:
 Reproduce with:
 
 ```bash
-node packages/cli/dist/index.js audit --app-root . --json
-node packages/cli/dist/index.js doctor --app-root . --json
+node packages/rn-mt/dist/cli.js audit --app-root . --json
+node packages/rn-mt/dist/cli.js doctor --app-root . --json
 ```
 
 ## 7. Handoff bug

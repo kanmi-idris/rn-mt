@@ -105,8 +105,8 @@ pnpm build
 pnpm examples:verify
 ```
 
-The examples verifier requires the built CLI at
-`packages/cli/dist/index.js`, so `pnpm build` is the safe default before
+The examples verifier requires the built public CLI at
+`packages/rn-mt/dist/cli.js`, so `pnpm build` is the safe default before
 `pnpm examples:verify`.
 
 ## Debug routing

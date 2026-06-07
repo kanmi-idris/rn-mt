@@ -3,6 +3,9 @@
  * by rn-mt sync.
  */
 import type { RnMtManifest, RnMtResolvedTarget } from "../manifest/types";
+import { RnMtAnalyzeModule } from "../analyze";
+import type { RnMtHostLanguage } from "../analyze/types";
+import { createCurrentFacadeFiles } from "../convert/facade-writer";
 import {
   resolveManifestLayers,
   resolveTargetRuntime,
@@ -47,6 +50,36 @@ export class RnMtSyncModule {
   constructor(private readonly dependencies: RnMtSyncModuleDependencies) {}
 
   /**
+   * Detects the host language so regenerated current facades keep the same
+   * extension style as the converted app.
+   */
+  private getHostLanguage(): RnMtHostLanguage {
+    return new RnMtAnalyzeModule({
+      workspace: this.dependencies.workspace,
+    }).detectHostLanguage(this.dependencies.workspace.rootDir).language;
+  }
+
+  /**
+   * Lists converted shared files that should be flattened through current
+   * facades for the selected tenant.
+   */
+  private getSharedFiles() {
+    const sharedRootDir = this.dependencies.workspace.getSharedRootDir();
+
+    if (!this.dependencies.workspace.isDirectory(sharedRootDir)) {
+      return null;
+    }
+
+    return this.dependencies.workspace
+      .listFiles(sharedRootDir)
+      .sort((left, right) => left.localeCompare(right))
+      .map((path) => ({
+        path,
+        contents: this.dependencies.workspace.readBuffer(path),
+      }));
+  }
+
+  /**
    * Runs the sync flow.
    */
   run(options: RnMtSyncRunOptions): RnMtSyncResult {
@@ -75,6 +108,15 @@ export class RnMtSyncModule {
 
     const resolution = resolveManifestLayers(manifest, target);
     const runtime = resolveTargetRuntime(manifest, target);
+    const sharedFiles = this.getSharedFiles();
+    const currentFacadeFiles = sharedFiles
+      ? createCurrentFacadeFiles(
+          this.dependencies.workspace,
+          target.tenant,
+          sharedFiles,
+          this.getHostLanguage(),
+        )
+      : [];
     const runtimeArtifact = createRuntimeArtifactFile(
       this.dependencies.workspace,
       runtime,
@@ -91,7 +133,11 @@ export class RnMtSyncModule {
       : runtime.assets.icon
         ? `./${runtime.assets.icon.replace(/\\/gu, "/")}`
         : undefined;
-    const trackedFiles = [runtimeArtifact, ...derivedAssets.files];
+    const trackedFiles = [
+      ...currentFacadeFiles,
+      runtimeArtifact,
+      ...derivedAssets.files,
+    ];
 
     if (hasExpoComputedConfig(this.dependencies.workspace)) {
       trackedFiles.push(
