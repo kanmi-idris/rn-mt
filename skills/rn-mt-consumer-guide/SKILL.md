@@ -24,6 +24,8 @@ behavior. Use those host-app checks plus rn-mt's consumer validation commands.
   behavior or changing generated surfaces.
 - Read `references/verification.md` before deciding which commands prove the
   change.
+- Read `references/issue-reporting.md` whenever you find a real defect while
+  working in a converted app.
 - Use the best file discovery and grep tooling available on the user's
   machine. Prefer the `fff` MCP server when it is available, but do not assume
   it exists.
@@ -103,6 +105,34 @@ Do not default to rn-mt monorepo commands such as `pnpm build` or
 `pnpm examples:verify` unless you are changing rn-mt package source in the
 rn-mt repository itself.
 
+## Issue reporting workflow
+
+Read `references/issue-reporting.md` whenever you find a real issue during
+consumer app work.
+
+For every issue found that appears to be caused by rn-mt itself, or where rn-mt
+remains a plausible owner after inspection, automatically:
+
+1. create or refresh `rn-mt-bugs.md` in the app root
+2. document repro steps, affected tenants, generated artifacts, logs, suspected
+   owner, fix or workaround, and verification
+3. publish a GitHub issue to `kanmi-idris/rn-mt` when possible
+4. report the issue URL to the user
+
+Use these bundled scripts:
+
+```bash
+./.agents/skills/rn-mt-consumer-guide/scripts/init-bug-report.sh "Short bug title"
+./.agents/skills/rn-mt-consumer-guide/scripts/publish-issue.sh rn-mt-bugs.md "Bug: short title"
+```
+
+If issue creation fails because `gh` is unavailable, unauthenticated, denied, or
+offline, tell the user exactly why and leave `rn-mt-bugs.md` ready to paste into:
+
+```text
+https://github.com/kanmi-idris/rn-mt/issues/new
+```
+
 ## How to work safely
 
 - Inspect `rn-mt.config.json` before deciding which labels exist.
@@ -122,6 +152,8 @@ rn-mt repository itself.
   When you need to add or modify shared or label-specific behavior.
 - `references/verification.md`
   When you need to select the right validation commands for a consumer app.
+- `references/issue-reporting.md`
+  When you find a defect that should be reported upstream to rn-mt.
 
 ## Example prompts this skill should handle well
 

@@ -140,6 +140,8 @@ The consumer skill tells the agent to:
   `npx rn-mt override create` for generated surfaces and overrides
 - validate consumer apps with the host app's Jest, lint, TypeScript, native, or
   UI checks plus `npx rn-mt audit` and `npx rn-mt doctor`
+- create `rn-mt-bugs.md` and publish a GitHub issue to `kanmi-idris/rn-mt`
+  automatically for every rn-mt-owned or plausibly rn-mt-owned issue found
 
 The consumer skill deliberately does not default to rn-mt monorepo checks such
 as `pnpm build` or `pnpm examples:verify`. Those validate rn-mt package source,
