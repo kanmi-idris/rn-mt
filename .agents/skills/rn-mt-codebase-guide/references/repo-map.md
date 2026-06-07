@@ -134,14 +134,25 @@ probably belongs elsewhere.
 
 ## Skills
 
-`skills/rn-mt-codebase-guide` is the distributable bundle users install with:
+`skills/rn-mt-codebase-guide` is the distributable bundle contributors install
+when working inside the rn-mt monorepo:
 
 ```bash
 npx skills add https://github.com/kanmi-idris/rn-mt --skill rn-mt-codebase-guide
 ```
 
+`skills/rn-mt-consumer-guide` is the distributable bundle developers and agents
+install when working inside apps that consume rn-mt after conversion:
+
+```bash
+npx skills add https://github.com/kanmi-idris/rn-mt --skill rn-mt-consumer-guide
+```
+
 `.agents/skills/rn-mt-codebase-guide` is the repo-local development copy used
 inside this workspace.
+
+`.agents/skills/rn-mt-consumer-guide` is the matching repo-local development
+copy for the consumer app workflow.
 
 ## Examples
 

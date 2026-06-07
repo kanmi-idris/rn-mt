@@ -87,7 +87,7 @@ The docs app reads markdown from the repo and renders it through `apps/docs`.
 
 The public installable skill bundles live in `skills/`.
 
-The main one in this repo is:
+The monorepo contributor skill is:
 
 ```text
 skills/rn-mt-codebase-guide
@@ -97,6 +97,17 @@ Install it the same way users do:
 
 ```sh
 npx skills add https://github.com/kanmi-idris/rn-mt --skill rn-mt-codebase-guide
+```
+
+For developers and agents working inside a converted consumer app, use the
+consumer app skill instead:
+
+```text
+skills/rn-mt-consumer-guide
+```
+
+```sh
+npx skills add https://github.com/kanmi-idris/rn-mt --skill rn-mt-consumer-guide
 ```
 
 If you change the repo-local development copy under `.agents/skills`, make sure
